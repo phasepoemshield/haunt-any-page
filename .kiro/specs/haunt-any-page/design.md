@@ -77,7 +77,7 @@ The key is `new URL(tab.url).origin`. Only origins and booleans/numbers are stor
 3. On "Haunt this page": `chrome.scripting.insertCSS({ files: ['src/content/haunt.css'] })`, then `chrome.scripting.executeScript({ files: ['src/content/haunt.js'] })`, then `chrome.tabs.sendMessage(tab.id, { type: 'haunt:apply', settings })`. `activeTab` grants this access because the user clicked the action.
 4. On "Restore the page": `sendMessage({ type: 'haunt:restore' })`, then `chrome.scripting.removeCSS(...)`.
 5. On any option change: save, and if haunted, `sendMessage({ type: 'haunt:apply', settings })`.
-6. On "Always haunt this site" checked: `chrome.permissions.request({ origins: [origin + '/*'] })` directly inside the click handler (it needs a user gesture). On deny, uncheck. On uncheck: `chrome.permissions.remove(...)` and save `remember: false`.
+6. On "Haunt this site every time" checked: `chrome.permissions.request({ origins: [origin + '/*'] })` directly inside the click handler (it needs a user gesture). On deny, uncheck. On uncheck: `chrome.permissions.remove(...)` and save `remember: false`.
 
 ## Background (`src/background.js`)
 
@@ -110,13 +110,19 @@ Every selector is scoped under `html.haunt-on` so the file is inert until applie
   - Layers (color, seed, base frequency, threshold, height, drift period): bone `#e9e3d2` 3/0.36/100%/110 s; cool `#cfe6df` 4/0.30/75%/70 s; warm `#e6d8bd` 6/0.34/55%/45 s reversed. Each layer is 200% wide and animates `translateX(0 → -50%)` linearly, so the loop is seamless and layers slide past each other.
   - A wrapper "breathes" (opacity 1 → .7, 12 s alternate). Overall opacity is `var(--haunt-fog)` from the density slider.
   - Building the canvases took 30 to 55 ms on real sites; do it once per page and keep the canvases.
-- Bats (any direction, banked): five or six bats animated with the Web Animations API.
-  - Each flight picks a random start point just outside one viewport edge and an end point outside another edge (70% the opposite edge, else a neighbour), so bats cross the whole page diagonally, up, down, left and right.
-  - The path is the straight line plus a sine swoop along its normal (amplitude 20 to 90 px, 1 to 3 waves), sampled into 24 keyframes of `translate(x, y) rotate(angle) scaleX(±1)`. `angle` follows the local slope, clamped to ±45° so bats bank but never fly sideways; `scaleX(-1)` when flying left.
-  - Size 26 to 60 px; smaller bats fly slower and are more transparent (depth). Speed 130 to 260 px/s scaled by size.
-  - Wings flap with a CSS `scaleY(1 → .35)` alternate animation, period 0.14 to 0.28 s, on the inner SVG.
-  - When a flight finishes, wait 0.3 to 3.5 s and start a new random flight. All timers are cleared on restore.
-  - Fill `#06060a` with `drop-shadow(0 0 2px rgba(255,176,74,.9)) drop-shadow(0 0 8px rgba(255,176,74,.35))` so silhouettes read on dark pages.
+- Bats: a small flight simulation in one `requestAnimationFrame` loop (cancelled on restore). Six bats, each an `<svg viewBox="-50 -50 100 100">` whose `transform` is `translate(x−50, y−50) rotate(tilt) scale(span/72)` and whose single `<path d>` is rebuilt every frame. Rejected earlier attempts, so do not repeat them: keyframed paths with a CSS `scaleY` flap ("like autumn leaves, no physics, no wings"), and a view from below rotated to the heading ("looks like a bird", bats bunched together).
+  - Front view, the classic bat silhouette. Local frame x = right, y = down, body at (0, 0); the left wing mirrors x. The bat does not rotate to its heading; it only leans into horizontal motion: `tilt = clamp(vx / (2.2·cruise), ±0.45 rad)`.
+  - Body (static subpaths): torso `M0 -5C3.6 -5 4 -1 3.6 3C3.2 7 1.6 9 0 9C-1.6 9 -3.2 7 -3.6 3C-4 -1 -3.6 -5 0 -5Z`, head `M3.2 -7.5a3.2 3.2 0 1 1 -6.4 0a3.2 3.2 0 1 1 6.4 0Z` (clockwise arcs; counter-clockwise ones punch a hole), ears `M1.2 -9.6L3.4 -14.2L3.1 -8.4ZM-1.2 -9.6L-3.4 -14.2L-3.1 -8.4Z`, feet `M1.2 8.4L2.4 11L0.6 9.6ZM-1.2 8.4L-2.4 11L-0.6 9.6Z`.
+  - Wing skeleton (right wing): shoulder (3, −3), elbow (11, −7), wrist (19, −9), finger tips (36, −3), (30, 5), (20, 8), hip (4, 6). Outline: shoulder → elbow → wrist → outer tip, then three quadratic scallops tip → tip → tip → hip, each control point = edge midpoint pulled 38% toward the wrist.
+  - Flap for phase φ: rotate elbow, wrist and tips around the shoulder by `arm = −0.95·sin φ` (negative raises the wing, y is down); then rotate the tips around the moved wrist by `hand = −0.75·sin(φ − 0.9)` (the hand lags); then fold the hand toward the wrist by `fold = 0.42·max(0, cos(φ − 0.3))` on the upstroke. One beat sweeps the wings from high above the head to well below the body (pose sheet: `concept/bat-wingbeat.png`).
+  - Wingbeat 4.2 to 5.6 Hz × √(60/span). Each downstroke lifts the body (`ay −= 520·max(0, cos φ)`) against a constant sink of 165 px/s², so the bat bobs with every beat.
+  - Steering: accelerate toward `cruise` along the direction to the target with gain 1.6 /s; cruise 90 to 150 px/s × span/60; speed capped at 1.8 × cruise.
+  - Erratic flight: every 0.18 to 0.6 s add a sideways dart of 60 to 150 px/s at 0.8 to 1.6 rad off the current direction (bats chase insects).
+  - Spread, never a flock: (a) separation, every pair closer than 180 px pushes apart with `520·(1 − d/180)` px/s²; (b) the viewport is split into a 3 × 2 grid and each new target is a random point in a cell no other bat is heading to; (c) bats spawn one at a time (about 1.1 s apart) and from the four edges in turn.
+  - After 3 to 5 targets a bat flies far outside the viewport, waits 0.8 to 3.5 s hidden and respawns.
+  - Span 46 to 80 px; smaller bats are more transparent (opacity 0.5 + span/130), reading as farther away.
+  - Fill `#120e0c` with a thin moonlit rim `stroke: rgba(233,227,210,.22); stroke-width: .8` so they read on dark pages. No glow.
+  - Each bat stays `visibility: hidden` until it first spawns; otherwise it flashes in the top-left corner when haunting starts (seen in a prototype).
 - Flicker: animates the vignette's opacity with `steps(1)` keyframes (at most 3 changes per second, dimming at most 30%), not the page filter, so it is cheap.
 - `@media (prefers-reduced-motion: reduce)`: no animations, bats hidden (Req 5.1).
 

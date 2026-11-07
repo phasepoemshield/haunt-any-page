@@ -19,8 +19,8 @@ Visual reference: `concept/haunt-any-page.html` (open it in a browser). Hackatho
 
 ### Acceptance criteria
 
-1. WHEN the user opens the popup on an `http` or `https` page THE SYSTEM SHALL show a primary button labelled "Haunt this page" and the state "OFF".
-2. WHEN the user clicks "Haunt this page" THE SYSTEM SHALL apply the skin to the active tab within 300 ms, change the label to "Restore the page" and the state to "ON".
+1. WHEN the user opens the popup on an `http` or `https` page THE SYSTEM SHALL show a primary button labelled "Haunt this page" and the status "<origin> looks normal."
+2. WHEN the user clicks "Haunt this page" THE SYSTEM SHALL apply the skin to the active tab within 300 ms, change the label to "Restore the page" and the status to "<origin> is haunted."
 3. WHEN the user clicks "Restore the page" THE SYSTEM SHALL remove every class, style element, overlay and font override the extension added, so that the page DOM is the same as before haunting.
 4. WHEN the skin is applied twice to the same page THE SYSTEM SHALL keep exactly one overlay and one style sheet (idempotent).
 5. WHEN the popup is opened on a page the extension cannot script (for example `chrome://`, the Chrome Web Store, a PDF viewer) THE SYSTEM SHALL disable the controls and show "This page can't be haunted".
@@ -38,7 +38,7 @@ Visual reference: `concept/haunt-any-page.html` (open it in a browser). Hackatho
 4. WHEN the user changes an option while the page is not haunted THE SYSTEM SHALL store it and use it at the next haunt.
 5. WHEN Old-book font is on THE SYSTEM SHALL use the bundled IM Fell DW Pica font for body text and headings and SHALL NOT change the font of code, `pre`, form fields or icon fonts.
 6. WHEN Fog is on THE SYSTEM SHALL show layered, drifting wisps of fog that are denser near the bottom of the window, not a single uniform blob.
-7. WHEN Bats is on THE SYSTEM SHALL fly five or six bats across the whole window in random directions on diagonal, swooping paths; each bat SHALL face its direction of flight, bank no more than 45° and flap its wings.
+7. WHEN Bats is on THE SYSTEM SHALL fly six bats with the classic front-view bat silhouette and jointed, visibly flapping wings, driven by a flight simulation (lift on each downstroke, erratic darts); the bats SHALL spread across the whole window and SHALL NOT fly as one group.
 8. WHEN the page already has a dark background (relative luminance of the body background below 0.2) THE SYSTEM SHALL skip the color inversion and apply only the tint, fog, bats and font.
 
 ## Requirement 3: Remember per site
@@ -49,10 +49,10 @@ Visual reference: `concept/haunt-any-page.html` (open it in a browser). Hackatho
 
 1. THE SYSTEM SHALL save the settings for the current site in `chrome.storage.local` whenever they change.
 2. WHEN the user opens the popup on a site with saved settings THE SYSTEM SHALL show those settings.
-3. THE SYSTEM SHALL offer an "Always haunt this site" checkbox.
-4. WHEN the user checks "Always haunt this site" THE SYSTEM SHALL request the optional host permission for that site only; IF the user denies it THEN THE SYSTEM SHALL uncheck the box and keep working with one-click haunting.
+3. THE SYSTEM SHALL offer an "Haunt this site every time" checkbox.
+4. WHEN the user checks "Haunt this site every time" THE SYSTEM SHALL request the optional host permission for that site only; IF the user denies it THEN THE SYSTEM SHALL uncheck the box and keep working with one-click haunting.
 5. WHEN a remembered site with granted permission is loaded or reloaded and its saved state is haunted THE SYSTEM SHALL apply the skin at `document_start`, before the first paint where possible.
-6. WHEN the user unchecks "Always haunt this site" THE SYSTEM SHALL stop auto-haunting it and remove the host permission for it.
+6. WHEN the user unchecks "Haunt this site every time" THE SYSTEM SHALL stop auto-haunting it and remove the host permission for it.
 
 ## Requirement 4: Privacy and permissions
 

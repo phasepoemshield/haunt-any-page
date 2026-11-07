@@ -4,7 +4,7 @@ Work through the tasks in order. After each task run `npm test` and `npm run che
 
 - [ ] 1. Project skeleton and manifest
   - Create `manifest.json` exactly as in design.md, and the empty files from the file layout.
-  - Add `assets/fonts/IMFellDWPica-Regular.ttf`, `IMFellDWPica-Italic.ttf` and `OFL.txt` from the Google Fonts repository (`ofl/imfelldwpica`), and export `concept/icon.svg` to PNG icons at 16, 32, 48 and 128 px in `assets/icons/`.
+  - Add fonts from the Google Fonts repository with their `OFL.txt`: IM Fell DW Pica regular and italic (`ofl/imfelldwpica`, page effect), Grenze Gotisch (`ofl/grenzegotisch`, popup wordmark), Atkinson Hyperlegible regular and bold (`ofl/atkinsonhyperlegible`, popup text). Export `concept/icon.svg` to PNG icons at 16, 32, 48 and 128 px in `assets/icons/`.
   - `npm run check` passes.
   - _Requirements: 4.1, 4.3_
 
@@ -24,7 +24,7 @@ Work through the tasks in order. After each task run `npm test` and `npm run che
   - _Requirements: 1.2, 1.3, 1.4, 1.6, 2.3, 2.6, 2.7, 5.1, 5.3_
 
 - [ ] 5. Popup UI
-  - `src/popup/popup.html` + `popup.css` matching `concept/popup-and-icon.png` and the "Popup layout" section in steering/visual-style.md: icon, title, ON/OFF pill, site origin, primary button, Effects section with fog density slider and four checkboxes, "Always haunt this site", privacy footer.
+  - `src/popup/popup.html` + `popup.css` matching `concept/popup.png` and the "Popup" and "No AI slop" sections in steering/visual-style.md: icon and wordmark, status sentence, primary button, effect rows with the fog density slider, "Haunt this site every time" with its hint.
   - Keyboard usable, visible focus ring, `aria-pressed` on the primary button.
   - _Requirements: 1.1, 2.1, 2.2, 5.2, 5.4_
 
@@ -33,7 +33,7 @@ Work through the tasks in order. After each task run `npm test` and `npm run che
   - _Requirements: 1.1, 1.2, 1.3, 1.5, 2.3, 2.4, 3.1, 3.2_
 
 - [ ] 7. Remember per site
-  - "Always haunt this site": `chrome.permissions.request/remove` in the click handler.
+  - "Haunt this site every time": `chrome.permissions.request/remove` in the click handler.
   - `src/background.js`: `syncRegistrations()` with `chrome.scripting.registerContentScripts` (`id: haunt-remembered`, `runAt: document_start`).
   - Content script loaded at `document_start` reads its own settings and applies them.
   - _Requirements: 3.3, 3.4, 3.5, 3.6_

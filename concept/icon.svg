@@ -1,22 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <defs>
-    <radialGradient id="glow" cx="50%" cy="46%" r="50%">
-      <stop offset="0" stop-color="#ffb04a" stop-opacity=".55"/>
-      <stop offset="1" stop-color="#ffb04a" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="moon" cx="42%" cy="38%" r="65%">
-      <stop offset="0" stop-color="#ffe2a8"/>
-      <stop offset=".6" stop-color="#ffb04a"/>
-      <stop offset="1" stop-color="#e08a20"/>
-    </radialGradient>
-    <clipPath id="tile"><rect width="128" height="128" rx="28"/></clipPath>
-  </defs>
-  <g clip-path="url(#tile)">
-  <rect width="128" height="128" fill="#0b0c0f"/>
-  <circle cx="64" cy="58" r="56" fill="url(#glow)"/>
-  <circle cx="64" cy="58" r="34" fill="url(#moon)"/>
-  <path transform="translate(14 46) scale(3.125)" fill="#0b0c0f"
-        d="M0 10Q6 0 12 8Q16 3 20 8Q26 0 32 10Q26 8 22 14Q16 9 10 14Q6 8 0 10Z"/>
-  <path d="M10 112 Q40 98 64 106 T118 104 L118 128 L10 128Z" fill="#e9e3d2" opacity=".18"/>
-  </g>
+  <rect width="128" height="128" rx="28" fill="#161412"/>
+  <rect x=".75" y=".75" width="126.5" height="126.5" rx="27.25" fill="none" stroke="#ece6d8" stroke-opacity=".14" stroke-width="1.5"/>
+  <circle cx="64" cy="64" r="40" fill="#ece6d8"/>
+  <path transform="translate(31 49) scale(.66)" fill="#161412"
+        d="M50 15L53.5 7.5L55.5 15.5Q60 14 65 11Q80 4 98 9Q91 13 89 23Q83 18.5 77 22Q71 18 65 24.5Q59 22.5 55 30L50 37L45 30Q41 22.5 35 24.5Q29 18 23 22Q17 18.5 11 23Q9 13 2 9Q20 4 35 11Q40 14 44.5 15.5L46.5 7.5Z"/>
 </svg>

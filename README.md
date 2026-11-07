@@ -10,7 +10,7 @@ Built for **Kiroween 2026** (category: Costume Contest) with [Kiro](https://kiro
 
 - **Haunt / Restore** with one button. Restore removes every trace from the page.
 - **Effects**: fog (with a density slider), bats, old-book font, candle flicker.
-- **Remembers per site**: tick "Always haunt this site" and it opens haunted every time.
+- **Remembers per site**: tick "Haunt this site every time" and the site opens haunted on every visit.
 - **Comfortable**: respects "reduce motion", the popup meets WCAG AA contrast and works with the keyboard.
 
 ## Privacy and permissions
@@ -22,7 +22,7 @@ Nothing leaves your browser. No network requests, no analytics, no remote code o
 | `activeTab` | Change only the tab you clicked the extension on. |
 | `scripting` | Add and remove the haunted style sheet on that tab. |
 | `storage` | Remember your choices per site, on this device only. |
-| optional host access | Asked per site, only if you tick "Always haunt this site". |
+| optional host access | Asked per site, only if you tick "Haunt this site every time". |
 
 ## Install (unpacked)
 
@@ -48,7 +48,7 @@ Kiro project files:
 
 ## Credits
 
-- Font: IM Fell DW Pica by Igino Marini, SIL Open Font License 1.1.
+- Fonts (SIL Open Font License 1.1): IM Fell DW Pica by Igino Marini, Grenze Gotisch by Omnibus-Type, Atkinson Hyperlegible by the Braille Institute.
 
 ## License
 
