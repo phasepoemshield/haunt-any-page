@@ -1,0 +1,13 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "check-contrast",
+      "description": "After a CSS file is saved, check that every text color / solid background pair meets WCAG AA (4.5:1).",
+      "trigger": "PostFileSave",
+      "matcher": "\\.css$",
+      "action": { "type": "command", "command": "node scripts/check-contrast.mjs" },
+      "timeout": 30
+    }
+  ]
+}

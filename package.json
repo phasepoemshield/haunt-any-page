@@ -1,0 +1,15 @@
+{
+  "name": "haunt-any-page",
+  "version": "0.1.0",
+  "description": "Browser extension: one click turns any website into a haunted version of itself.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test tests/",
+    "check": "node scripts/check-manifest.mjs && node scripts/check-contrast.mjs && node scripts/check-privacy.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

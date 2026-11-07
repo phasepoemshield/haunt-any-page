@@ -1,0 +1,8 @@
+# Do NOT ignore .kiro/ (hackathon rule: it must be committed)
+node_modules/
+.DS_Store
+*.zip
+*.crx
+*.pem
+dist/
+.claude/

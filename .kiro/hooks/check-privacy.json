@@ -1,0 +1,13 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "check-privacy",
+      "description": "After extension source is saved, make sure no data can leave the browser: no network calls, remote URLs, eval or synced storage.",
+      "trigger": "PostFileSave",
+      "matcher": "src/.*\\.(m?js|html|css)$",
+      "action": { "type": "command", "command": "node scripts/check-privacy.mjs" },
+      "timeout": 30
+    }
+  ]
+}

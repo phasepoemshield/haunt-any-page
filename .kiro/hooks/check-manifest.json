@@ -1,0 +1,13 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "check-manifest",
+      "description": "After manifest.json is saved, validate MV3 fields, minimal permissions and that every referenced file exists.",
+      "trigger": "PostFileSave",
+      "matcher": "manifest\\.json$",
+      "action": { "type": "command", "command": "node scripts/check-manifest.mjs" },
+      "timeout": 30
+    }
+  ]
+}
