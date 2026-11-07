@@ -91,7 +91,7 @@ The key is `new URL(tab.url).origin`. Only origins and booleans/numbers are stor
 - Listens for `haunt:apply` and `haunt:restore` messages.
 - `apply(settings)`:
   - On `document.documentElement` sets class `haunt-on` and toggles `haunt-fog`, `haunt-bats`, `haunt-font`, `haunt-flicker`, `haunt-dark-page`; sets `--haunt-fog` to `fogDensity / 100`.
-  - Detects an already dark page once `document.body` exists (Req 2.6) and sets `haunt-dark-page`.
+  - Detects an already dark page once `document.body` exists (Req 2.8) and sets `haunt-dark-page`.
   - Creates the overlay once: `<haunt-any-page-overlay aria-hidden="true">` appended to `documentElement` with a closed shadow root that holds the fog layers, four SVG bats (the path from the concept) and the candle vignette. The shadow styles are a constructed `CSSStyleSheet` assigned to `shadowRoot.adoptedStyleSheets` (not a `<style>` element), so strict page CSPs cannot block them. Bat SVGs are built with `createElementNS`, never with `innerHTML` of page-derived strings.
   - Loads the bundled font with the FontFace API: `const face = new FontFace('Haunt Fell', \`url("${chrome.runtime.getURL('assets/fonts/IMFellDWPica-Regular.ttf')}")\`); document.fonts.add(face);`. No `<style>` element and no `__MSG_@@extension_id__` URL (that static URL does not work with `use_dynamic_url: true`).
 - `restore()` removes the classes, the custom property and the overlay element, and calls `document.fonts.delete(face)`. After restore `document.documentElement.outerHTML` equals the value captured before the first apply, apart from changes the page made itself (Req 1.3).
@@ -105,8 +105,18 @@ Every selector is scoped under `html.haunt-on` so the file is inert until applie
 - Dark pages: `html.haunt-on.haunt-dark-page { filter: sepia(.35) brightness(.9); }`.
 - Font: `html.haunt-on.haunt-font :where(body, body *):not(code, code *, pre, pre *, kbd, samp, input, textarea, select, svg, svg *, math, i, [class*="icon"], [class*="symbol"], [class*="fa-"], [aria-hidden="true"])` gets `font-family: "Haunt Fell", Georgia, serif !important`. A list of text tags is not enough: YouTube, GitHub and others put text in `div`, `span` and custom elements.
 - Overlay host: `position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 2147483647; display: block` (all `!important`), and on light pages the same `invert(1) hue-rotate(180deg)` counter-filter so fog and bats keep their real colors.
-- Fog: two radial gradients from the concept, `inset: 0 -10%` (wider than the viewport so the drift never shows an edge), `mix-blend-mode: screen`, opacity `var(--haunt-fog)`, 14 s `drift` animation.
-- Bats: the concept's `fly` animation, 9 s, four bats at different heights and delays, 34 px wide, with `filter: drop-shadow(0 0 3px rgba(255,176,74,.55))` so the black silhouettes stay visible on dark pages.
+- Fog (wisps, not a blob): three layers of fractal value noise drawn once into small `<canvas>` elements inside the shadow root (no images, no data URLs, so page CSP cannot block them).
+  - Noise: 5 octaves of value noise, periodic in x so the tile repeats seamlessly. Each canvas holds the same 320x140 tile twice side by side. Alpha = `smoothclamp((n - threshold) / (1 - threshold)) ^ 1.1`, multiplied by `0.35 + 0.65 * (y / h) ^ 1.3` so the fog is denser near the bottom.
+  - Layers (color, seed, base frequency, threshold, height, drift period): bone `#e9e3d2` 3/0.36/100%/110 s; cool `#cfe6df` 4/0.30/75%/70 s; warm `#e6d8bd` 6/0.34/55%/45 s reversed. Each layer is 200% wide and animates `translateX(0 → -50%)` linearly, so the loop is seamless and layers slide past each other.
+  - A wrapper "breathes" (opacity 1 → .7, 12 s alternate). Overall opacity is `var(--haunt-fog)` from the density slider.
+  - Building the canvases took 30 to 55 ms on real sites; do it once per page and keep the canvases.
+- Bats (any direction, banked): five or six bats animated with the Web Animations API.
+  - Each flight picks a random start point just outside one viewport edge and an end point outside another edge (70% the opposite edge, else a neighbour), so bats cross the whole page diagonally, up, down, left and right.
+  - The path is the straight line plus a sine swoop along its normal (amplitude 20 to 90 px, 1 to 3 waves), sampled into 24 keyframes of `translate(x, y) rotate(angle) scaleX(±1)`. `angle` follows the local slope, clamped to ±45° so bats bank but never fly sideways; `scaleX(-1)` when flying left.
+  - Size 26 to 60 px; smaller bats fly slower and are more transparent (depth). Speed 130 to 260 px/s scaled by size.
+  - Wings flap with a CSS `scaleY(1 → .35)` alternate animation, period 0.14 to 0.28 s, on the inner SVG.
+  - When a flight finishes, wait 0.3 to 3.5 s and start a new random flight. All timers are cleared on restore.
+  - Fill `#06060a` with `drop-shadow(0 0 2px rgba(255,176,74,.9)) drop-shadow(0 0 8px rgba(255,176,74,.35))` so silhouettes read on dark pages.
 - Flicker: animates the vignette's opacity with `steps(1)` keyframes (at most 3 changes per second, dimming at most 30%), not the page filter, so it is cheap.
 - `@media (prefers-reduced-motion: reduce)`: no animations, bats hidden (Req 5.1).
 

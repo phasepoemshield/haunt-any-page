@@ -37,7 +37,9 @@ Visual reference: `concept/haunt-any-page.html` (open it in a browser). Hackatho
 3. WHEN the user changes any option while the page is haunted THE SYSTEM SHALL update the page live without reloading it.
 4. WHEN the user changes an option while the page is not haunted THE SYSTEM SHALL store it and use it at the next haunt.
 5. WHEN Old-book font is on THE SYSTEM SHALL use the bundled IM Fell DW Pica font for body text and headings and SHALL NOT change the font of code, `pre`, form fields or icon fonts.
-6. WHEN the page already has a dark background (relative luminance of the body background below 0.2) THE SYSTEM SHALL skip the color inversion and apply only the tint, fog, bats and font.
+6. WHEN Fog is on THE SYSTEM SHALL show layered, drifting wisps of fog that are denser near the bottom of the window, not a single uniform blob.
+7. WHEN Bats is on THE SYSTEM SHALL fly five or six bats across the whole window in random directions on diagonal, swooping paths; each bat SHALL face its direction of flight, bank no more than 45° and flap its wings.
+8. WHEN the page already has a dark background (relative luminance of the body background below 0.2) THE SYSTEM SHALL skip the color inversion and apply only the tint, fog, bats and font.
 
 ## Requirement 3: Remember per site
 

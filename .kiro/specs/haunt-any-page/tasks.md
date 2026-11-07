@@ -4,7 +4,7 @@ Work through the tasks in order. After each task run `npm test` and `npm run che
 
 - [ ] 1. Project skeleton and manifest
   - Create `manifest.json` exactly as in design.md, and the empty files from the file layout.
-  - Add `assets/fonts/IMFellDWPica-Regular.ttf`, `IMFellDWPica-Italic.ttf` and `OFL.txt` from the Google Fonts repository (`ofl/imfelldwpica`), and four PNG icons (a small bat or candle on `#0b0c0f`).
+  - Add `assets/fonts/IMFellDWPica-Regular.ttf`, `IMFellDWPica-Italic.ttf` and `OFL.txt` from the Google Fonts repository (`ofl/imfelldwpica`), and export `concept/icon.svg` to PNG icons at 16, 32, 48 and 128 px in `assets/icons/`.
   - `npm run check` passes.
   - _Requirements: 4.1, 4.3_
 
@@ -16,15 +16,15 @@ Work through the tasks in order. After each task run `npm test` and `npm run che
 - [ ] 3. Skin style sheet
   - `src/content/haunt.css` as in design.md: palette filter, media counter-filter, dark-page variant, font override with exclusions, overlay host.
   - Everything scoped under `html.haunt-on`.
-  - _Requirements: 1.6, 2.5, 2.6_
+  - _Requirements: 1.6, 2.5, 2.8_
 
 - [ ] 4. Content script: apply and restore
   - `src/content/haunt.js` with the idempotent guard, message listener, `apply(settings)` and `restore()`.
-  - Overlay in a closed shadow root: fog layers, four bats, candle vignette; animations and reduced-motion rules inside the shadow style.
-  - _Requirements: 1.2, 1.3, 1.4, 1.6, 2.3, 5.1, 5.3_
+  - Overlay in a closed shadow root: noise-canvas fog layers, bats with Web Animations flights, candle vignette; reduced-motion rules inside the shadow style. Follow the numbers in design.md.
+  - _Requirements: 1.2, 1.3, 1.4, 1.6, 2.3, 2.6, 2.7, 5.1, 5.3_
 
 - [ ] 5. Popup UI
-  - `src/popup/popup.html` + `popup.css` matching the concept panel (tokens from steering/visual-style.md): title with ON/OFF state, primary button, fog density slider, four checkboxes, "Always haunt this site" checkbox.
+  - `src/popup/popup.html` + `popup.css` matching `concept/popup-and-icon.png` and the "Popup layout" section in steering/visual-style.md: icon, title, ON/OFF pill, site origin, primary button, Effects section with fog density slider and four checkboxes, "Always haunt this site", privacy footer.
   - Keyboard usable, visible focus ring, `aria-pressed` on the primary button.
   - _Requirements: 1.1, 2.1, 2.2, 5.2, 5.4_
 
