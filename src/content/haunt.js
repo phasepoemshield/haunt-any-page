@@ -37,23 +37,38 @@
   }
 
   function detectDarkPage() {
-    if (!document.body) return false;
-    const luminance = backgroundLuminance(document.body) ?? backgroundLuminance(document.documentElement) ?? 1;
+    const html = document.documentElement;
+    // Read the page's own colors, not the ones our style sheet forces on <html>
+    // (it sets a white background on light pages). Class changes in one task never paint.
+    const wasOn = html.classList.contains('haunt-on');
+    if (wasOn) html.classList.remove('haunt-on');
+    const luminance = (document.body && backgroundLuminance(document.body)) ?? backgroundLuminance(html) ?? 1;
+    if (wasOn) html.classList.add('haunt-on');
     return luminance < 0.2;
+  }
+
+  // The page's colors are not final when the script runs at document_start (remembered
+  // sites): style sheets are still loading, so a dark page looks transparent and would be
+  // taken for a light one and inverted. Decide as soon as possible, then re-check as the
+  // page finishes loading.
+  function refreshDarkPage() {
+    const html = document.documentElement;
+    if (!html.classList.contains('haunt-on') || !document.body) return;
+    originalDarkPage = detectDarkPage();
+    html.classList.toggle('haunt-dark-page', originalDarkPage);
   }
   
   function apply(settings) {
     const html = document.documentElement;
     html.classList.add('haunt-on');
     
-    // Detect dark page
+    // Detect dark page (again on DOMContentLoaded and load, see below)
     if (document.body) {
-      originalDarkPage = detectDarkPage();
+      refreshDarkPage();
     } else {
       const observer = new MutationObserver(() => {
         if (document.body) {
-          originalDarkPage = detectDarkPage();
-          html.classList.toggle('haunt-dark-page', originalDarkPage);
+          refreshDarkPage();
           observer.disconnect();
         }
       });
@@ -674,6 +689,12 @@
     }
   }
   
+  document.addEventListener('DOMContentLoaded', refreshDarkPage);
+  window.addEventListener('load', () => {
+    refreshDarkPage();
+    setTimeout(refreshDarkPage, 800); // pages that pick their theme in a script after load
+  });
+
   // Message listener
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'haunt:apply') {
