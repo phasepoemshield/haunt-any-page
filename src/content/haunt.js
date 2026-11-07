@@ -12,6 +12,7 @@
   let batSimulationFrame = null;
   let fontFace = null;
   let originalDarkPage = false;
+  let appliedOverlayKey = null;
   
   // Bat simulation state
   const bats = [];
@@ -20,14 +21,25 @@
   // Grid for target selection (3x2)
   const targetGrid = { cols: 3, rows: 2, occupied: [] };
   
+  // WCAG relative luminance of the first opaque background (body, then html).
+  // A fully transparent background means the browser default: white.
+  function backgroundLuminance(el) {
+    const match = window.getComputedStyle(el).backgroundColor
+      .match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+))?/);
+    if (!match) return null;
+    const alpha = match[4] === undefined ? 1 : Number(match[4]);
+    if (alpha < 0.5) return null;
+    const lin = c => {
+      c = Number(c) / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * lin(match[1]) + 0.7152 * lin(match[2]) + 0.0722 * lin(match[3]);
+  }
+
   function detectDarkPage() {
     if (!document.body) return false;
-    const bg = window.getComputedStyle(document.body).backgroundColor;
-    const match = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-    if (!match) return false;
-    const [, r, g, b] = match.map(Number);
-    const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-    return luminance < 0.5;
+    const luminance = backgroundLuminance(document.body) ?? backgroundLuminance(document.documentElement) ?? 1;
+    return luminance < 0.2;
   }
   
   function apply(settings) {
@@ -68,11 +80,15 @@
       fontFace.load().catch(err => console.warn('Haunt: font load failed', err));
     }
     
-    // Create overlay once
+    // Build the overlay once; rebuild only when an effect is switched on or off.
+    // Moving the density slider only changes --haunt-fog, so bats keep flying.
+    const overlayKey = [settings.fog, settings.bats, settings.flicker].join();
     if (!overlayElement) {
       createOverlay(settings);
-    } else {
+      appliedOverlayKey = overlayKey;
+    } else if (overlayKey !== appliedOverlayKey) {
       updateOverlay(settings);
+      appliedOverlayKey = overlayKey;
     }
   }
   
@@ -135,40 +151,44 @@
       .fog-container {
         position: absolute;
         inset: 0;
-        opacity: ${settings.fog ? 'var(--fog-opacity, 0.55)' : '0'};
+        /* --haunt-fog (0..1) is set on <html> by apply() from the density slider.
+           The 1.35 factor keeps the default 55% at the look approved in the prototype. */
+        --fog: calc(var(--haunt-fog, 0.55) * 1.35);
+        opacity: ${settings.fog ? 'var(--fog)' : '0'};
         ${reducedMotion ? '' : 'animation: fog-breathe 12s ease-in-out infinite alternate;'}
       }
-      
+
+      /* Layers sit at the bottom and differ in height, so fog is thicker near the ground.
+         Each is 200% wide (two identical tiles) and drifts by exactly one tile. */
       .fog-layer {
         position: absolute;
-        inset: 0;
+        left: 0;
+        bottom: 0;
         width: 200%;
-        height: 100%;
-        ${reducedMotion ? '' : 'animation-timing-function: linear; animation-iteration-count: infinite;'}
       }
-      
-      .fog-layer.bone { ${reducedMotion ? '' : 'animation: fog-drift 110s linear infinite;'} }
-      .fog-layer.cool { ${reducedMotion ? '' : 'animation: fog-drift 70s linear infinite;'} }
-      .fog-layer.warm { ${reducedMotion ? '' : 'animation: fog-drift 45s linear infinite reverse;'} }
-      
+
+      .fog-layer.bone { height: 100%; opacity: 0.55; ${reducedMotion ? '' : 'animation: fog-drift 110s linear infinite;'} }
+      .fog-layer.cool { height: 75%; opacity: 0.9; ${reducedMotion ? '' : 'animation: fog-drift 70s linear infinite;'} }
+      .fog-layer.warm { height: 55%; opacity: 0.8; ${reducedMotion ? '' : 'animation: fog-drift 45s linear infinite reverse;'} }
+
       .fog-layer canvas {
+        display: block;
         width: 100%;
         height: 100%;
-        object-fit: cover;
       }
-      
+
       ${reducedMotion ? '' : `
       @keyframes fog-drift {
         from { transform: translateX(0); }
         to { transform: translateX(-50%); }
       }
-      
+
       @keyframes fog-breathe {
-        from { opacity: var(--fog-opacity, 0.55); }
-        to { opacity: calc(var(--fog-opacity, 0.55) * 0.7); }
+        from { opacity: var(--fog); }
+        to { opacity: calc(var(--fog) * 0.7); }
       }
       `}
-      
+
       .bat {
         position: absolute;
         visibility: hidden;
@@ -204,134 +224,105 @@
     return sheet;
   }
   
+  // Fog: three layers of fractal value noise drawn once into small canvases.
+  // The noise lattice wraps horizontally (period = base scale), so the 320px tile
+  // repeats without a seam. Each canvas holds the tile twice side by side.
+  const FOG_LAYERS = [
+    { cls: 'bone', rgb: [233, 227, 210], seed: 11, scale: 3, threshold: 0.36 },
+    { cls: 'cool', rgb: [207, 230, 223], seed: 23, scale: 4, threshold: 0.30 },
+    { cls: 'warm', rgb: [230, 216, 189], seed: 37, scale: 6, threshold: 0.34 }
+  ];
+  const FOG_TILE_W = 320;
+  const FOG_TILE_H = 140;
+
   function createFogLayers() {
     if (fogCanvases) return fogCanvases.container;
-    
+
     const container = document.createElement('div');
     container.className = 'fog-container';
-    
-    // Three fog layers: bone, cool, warm
-    const layers = [
-      { class: 'bone', color: '#e9e3d2', seed: 3, freq: 0.36, threshold: 0, height: 1.0 },
-      { class: 'cool', color: '#cfe6df', seed: 4, freq: 0.30, threshold: 0, height: 0.75 },
-      { class: 'warm', color: '#e6d8bd', seed: 6, freq: 0.34, threshold: 0, height: 0.55 }
-    ];
-    
     fogCanvases = { container, canvases: [] };
-    
-    for (const layer of layers) {
+
+    for (const layer of FOG_LAYERS) {
       const div = document.createElement('div');
-      div.className = `fog-layer ${layer.class}`;
-      
+      div.className = `fog-layer ${layer.cls}`;
       const canvas = createFogCanvas(layer);
       div.appendChild(canvas);
       container.appendChild(div);
       fogCanvases.canvases.push(canvas);
     }
-    
     return container;
   }
-  
+
   function createFogCanvas(layer) {
+    const w = FOG_TILE_W;
+    const h = FOG_TILE_H;
     const canvas = document.createElement('canvas');
-    const width = 640; // 320px tile repeated twice
-    const height = 140;
-    canvas.width = width;
-    canvas.height = height;
-    
+    canvas.width = w * 2;
+    canvas.height = h;
     const ctx = canvas.getContext('2d');
-    const imageData = ctx.createImageData(width, height);
-    const data = imageData.data;
-    
-    // Value noise with 5 octaves
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const xNorm = (x % 320) / 320; // periodic in x
-        const yNorm = y / height;
-        
+    const image = ctx.createImageData(w, h);
+    const data = image.data;
+    const [r, g, b] = layer.rgb;
+
+    for (let y = 0; y < h; y++) {
+      // Denser towards the bottom, and fading to nothing over the top 35% of the layer
+      // so shorter layers have no hard upper edge.
+      const t = Math.min(1, y / (h * 0.35));
+      const ground = (0.35 + 0.65 * Math.pow(y / h, 1.3)) * (t * t * (3 - 2 * t));
+      for (let x = 0; x < w; x++) {
         let noise = 0;
-        let amplitude = 1;
-        let frequency = layer.freq;
-        let maxValue = 0;
-        
+        let amplitude = 0.5;
+        let norm = 0;
+        let freq = 1;
         for (let octave = 0; octave < 5; octave++) {
-          noise += valueNoise(xNorm * frequency + layer.seed, yNorm * frequency + layer.seed) * amplitude;
-          maxValue += amplitude;
+          const period = layer.scale * freq;
+          noise += amplitude * periodicNoise(
+            (x / w) * period,
+            (y / h) * period * (h / w) * 2,
+            period,
+            layer.seed + octave
+          );
+          norm += amplitude;
           amplitude *= 0.5;
-          frequency *= 2;
+          freq *= 2;
         }
-        
-        noise /= maxValue;
-        
-        // Alpha based on threshold and y gradient
-        let alpha = (noise - layer.threshold) / (1 - layer.threshold);
-        alpha = Math.max(0, Math.min(1, alpha));
-        alpha = Math.pow(alpha, 1.1);
-        
-        // Denser near bottom
-        const yGradient = 0.35 + 0.65 * Math.pow(yNorm, 1.3);
-        alpha *= yGradient;
-        
-        // Only render if in height range
-        if (yNorm > layer.height) {
-          alpha = 0;
-        }
-        
-        const idx = (y * width + x) * 4;
-        const rgb = hexToRgb(layer.color);
-        data[idx] = rgb.r;
-        data[idx + 1] = rgb.g;
-        data[idx + 2] = rgb.b;
-        data[idx + 3] = alpha * 255;
+        noise /= norm;
+        const a = Math.max(0, Math.min(1, (noise - layer.threshold) / (1 - layer.threshold)));
+        const i = (y * w + x) * 4;
+        data[i] = r;
+        data[i + 1] = g;
+        data[i + 2] = b;
+        data[i + 3] = Math.round(255 * Math.pow(a, 1.1) * ground);
       }
     }
-    
-    ctx.putImageData(imageData, 0, 0);
+
+    ctx.putImageData(image, 0, 0);
+    ctx.putImageData(image, w, 0);
     return canvas;
   }
-  
-  // Simple value noise
-  function valueNoise(x, y) {
-    const X = Math.floor(x);
-    const Y = Math.floor(y);
-    const xf = x - X;
-    const yf = y - Y;
-    
-    const a = hash(X, Y);
-    const b = hash(X + 1, Y);
-    const c = hash(X, Y + 1);
-    const d = hash(X + 1, Y + 1);
-    
-    const u = fade(xf);
-    const v = fade(yf);
-    
-    return lerp(lerp(a, b, u), lerp(c, d, u), v);
+
+  function latticeValue(x, y, seed) {
+    let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(seed, 1442695041)) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
   }
-  
-  function hash(x, y) {
-    let h = x * 374761393 + y * 668265263;
-    h = (h ^ (h >>> 13)) * 1274126177;
-    h = (h ^ (h >>> 16));
-    return (h & 0x7fffffff) / 0x7fffffff;
+
+  // Value noise whose lattice repeats every `period` cells in x.
+  function periodicNoise(x, y, period, seed) {
+    const xi = Math.floor(x);
+    const yi = Math.floor(y);
+    const xf = x - xi;
+    const yf = y - yi;
+    const wrap = v => ((v % period) + period) % period;
+    const a = latticeValue(wrap(xi), yi, seed);
+    const b = latticeValue(wrap(xi + 1), yi, seed);
+    const c = latticeValue(wrap(xi), yi + 1, seed);
+    const d = latticeValue(wrap(xi + 1), yi + 1, seed);
+    const u = xf * xf * (3 - 2 * xf);
+    const v = yf * yf * (3 - 2 * yf);
+    return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
   }
-  
-  function fade(t) {
-    return t * t * t * (t * (t * 6 - 15) + 10);
-  }
-  
-  function lerp(a, b, t) {
-    return a + (b - a) * t;
-  }
-  
-  function hexToRgb(hex) {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    } : { r: 0, g: 0, b: 0 };
-  }
-  
+
   function createBats(shadow) {
     for (let i = 0; i < BAT_COUNT; i++) {
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -675,7 +666,8 @@
       fogCanvases = null;
       batElements = [];
     }
-    
+    appliedOverlayKey = null;
+
     if (fontFace) {
       document.fonts.delete(fontFace);
       fontFace = null;
@@ -690,21 +682,28 @@
     } else if (message.type === 'haunt:restore') {
       restore();
       sendResponse({ success: true });
+    } else if (message.type === 'haunt:status') {
+      sendResponse({ haunted: document.documentElement.classList.contains('haunt-on') });
     }
   });
-  
-  // If loaded by registerContentScripts, apply from stored settings
+
+  // If loaded by registerContentScripts (page still loading), apply from stored settings.
+  // Content scripts cannot import src/shared/settings.js (it is not web-accessible and
+  // must stay that way), so read chrome.storage.local directly. Keep these defaults in
+  // sync with DEFAULTS in src/shared/settings.js.
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', async () => {
-      const { loadSite, originOf } = await import(chrome.runtime.getURL('src/shared/settings.js'));
-      const origin = originOf(location.href);
-      if (!origin) return;
-      
-      const settings = await loadSite(origin);
-      if (settings.haunted && settings.remember) {
-        apply(settings);
+    (async () => {
+      try {
+        const defaults = { fog: true, fogDensity: 55, bats: true, font: true, flicker: false };
+        const stored = await chrome.storage.local.get(['defaults', 'sites']);
+        const settings = { ...(stored.defaults || defaults), ...(stored.sites?.[location.origin] || {}) };
+        if (settings.haunted && settings.remember) {
+          apply(settings);
+        }
+      } catch (error) {
+        console.warn('Haunt: could not load remembered settings', error);
       }
-    });
+    })();
   }
   
   window.__hauntAnyPage = { apply, restore };
