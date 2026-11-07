@@ -15,7 +15,9 @@ html.haunt-on:not(.haunt-dark-page) canvas,
 html.haunt-on:not(.haunt-dark-page) iframe,
 html.haunt-on:not(.haunt-dark-page) svg image,
 html.haunt-on:not(.haunt-dark-page) [style*="background-image"] {
-  filter: invert(1) hue-rotate(180deg) grayscale(0.6) sepia(0.4) brightness(0.7) !important;
+  /* Undo the page inversion and keep the colors: the page-wide sepia and dimming above
+     already tint the media, so a second grayscale/sepia pass left thumbnails colorless. */
+  filter: invert(1) hue-rotate(180deg) saturate(1.1) brightness(0.9) !important;
 }
 
 /* Link recoloring for prose links on light pages (candle orange after filter) */
