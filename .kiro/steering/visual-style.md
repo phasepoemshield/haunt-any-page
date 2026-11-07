@@ -27,9 +27,9 @@ Match `concept/haunt-any-page.html`. Mood: an old book read by candlelight in a 
 ## Skin on the page
 
 - Light pages are inverted with `invert(1) hue-rotate(180deg)` plus a warm `sepia` and slight darkening, so text becomes bone on near-black. Media is flipped back and made grey-sepia and dim.
-- The filter keeps hues, so blue links would stay blue. On light pages set `html.haunt-on:not(.haunt-dark-page) a { color: #8a4a00 !important }`: after the filter this dark amber shows as candle orange (verified in Chrome). On dark pages use `color: var(--candle)` equivalent `#ffb04a`.
+- The filter keeps hues, so blue links would stay blue. On light pages give prose links (`:where(p, li, dd, figcaption, blockquote) a:not([role="button"])`) `color: #8a4a00 !important`: after the filter this dark amber shows as candle orange. On dark pages use `#ffb04a`. Do not recolor every link: button-like links and colored nav bars lose contrast.
 - CSS gradient backgrounds are not counter-filtered; that is fine (they turn dark and moody).
 - Fog: two soft radial gradients (`#cfe6df` and `#e6d8bd`), `mix-blend-mode: screen`, slow 14 s drift.
-- Bats: solid near-black (`#06060a`) SVG silhouettes using the path from the concept, 18 to 30 px wide, 9 s flight across the viewport, never more than four.
+- Bats: solid near-black (`#06060a`) SVG silhouettes using the path from the concept, 18 to 34 px wide, with a faint candle glow `drop-shadow(0 0 3px rgba(255,176,74,.55))` so they show on dark pages, 9 s flight across the viewport, never more than four.
 - Candle flicker: a dark vignette at the edges whose opacity steps; it must not dim more than 30% and must not change more than 3 times per second.
 - Respect `prefers-reduced-motion: reduce`: static fog, no bats, no flicker.

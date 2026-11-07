@@ -40,7 +40,8 @@ Work through the tasks in order. After each task run `npm test` and `npm run che
 
 - [ ] 8. End-to-end smoke test
   - `tests/fixtures/page.html` (a plain light article like the concept) and `tests/e2e.test.mjs` with Puppeteer: load the unpacked extension, haunt the fixture through the content script, assert classes and overlay, restore, assert the DOM equals the original, assert no network requests were made by the extension.
-  - Add `puppeteer` as a dev dependency and an `npm run e2e` script.
+  - Add `puppeteer` as a dev dependency and an `npm run e2e` script. Use Chrome for Testing (`npx @puppeteer/browsers install chrome@stable`): branded Chrome no longer loads unpacked extensions from the command line.
+  - Optional real-site pass (not in CI): YouTube, Wikipedia, GitHub, BBC News, Hacker News, Discord, MDN; save screenshots for the demo.
   - _Requirements: 1.3, 1.4, 4.2_
 
 - [ ] 9. README, store text and demo prep
