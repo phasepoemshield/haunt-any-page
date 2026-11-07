@@ -247,7 +247,13 @@ body {
 }
 
 /* Unsupported state */
+/* Author display rules (flex rows) would otherwise beat the browser's [hidden] */
+[hidden] {
+  display: none !important;
+}
+
 .unsupported {
+  display: none;
   text-align: center;
   padding: 20px;
   color: var(--muted);

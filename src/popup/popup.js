@@ -45,8 +45,14 @@ async function init() {
     
     // Load settings for this origin
     currentSettings = await loadSite(currentOrigin);
-    isHaunted = currentSettings.haunted || false;
-    
+
+    // The saved flag can be stale (page reloaded, tab restored): ask the page itself.
+    isHaunted = await pageIsHaunted();
+    if (isHaunted !== Boolean(currentSettings.haunted)) {
+      currentSettings.haunted = isHaunted;
+      await saveSite(currentOrigin, { haunted: isHaunted });
+    }
+
     // Update UI
     updateUI();
     
@@ -78,7 +84,7 @@ function updateUI() {
   // Effect controls
   elements.fogCheckbox.checked = currentSettings.fog ?? DEFAULTS.fog;
   elements.densitySlider.value = currentSettings.fogDensity ?? DEFAULTS.fogDensity;
-  elements.densityRow.style.display = elements.fogCheckbox.checked ? 'flex' : 'none';
+  elements.densityRow.hidden = !elements.fogCheckbox.checked;
   elements.batsCheckbox.checked = currentSettings.bats ?? DEFAULTS.bats;
   elements.fontCheckbox.checked = currentSettings.font ?? DEFAULTS.font;
   elements.flickerCheckbox.checked = currentSettings.flicker ?? DEFAULTS.flicker;
@@ -102,61 +108,70 @@ function attachListeners() {
   elements.rememberCheckbox.addEventListener('change', handleRememberChange);
 }
 
+// Ask the page whether the skin is active. No answer means the content
+// script is not there (page reloaded or never haunted), so it is not haunted.
+async function pageIsHaunted() {
+  try {
+    const reply = await sendMessage({ type: 'haunt:status' });
+    return Boolean(reply && reply.haunted);
+  } catch {
+    return false;
+  }
+}
+
+async function hauntPage() {
+  await chrome.scripting.insertCSS({
+    target: { tabId: currentTab.id },
+    files: ['src/content/haunt.css']
+  });
+  await chrome.scripting.executeScript({
+    target: { tabId: currentTab.id },
+    files: ['src/content/haunt.js']
+  });
+  await sendMessage({ type: 'haunt:apply', settings: currentSettings });
+
+  isHaunted = true;
+  currentSettings.haunted = true;
+  await saveSite(currentOrigin, { haunted: true });
+}
+
+async function restorePage() {
+  // If the content script is gone there is nothing to undo on the page.
+  try {
+    await sendMessage({ type: 'haunt:restore' });
+  } catch {
+    // no receiver
+  }
+  try {
+    await chrome.scripting.removeCSS({
+      target: { tabId: currentTab.id },
+      files: ['src/content/haunt.css']
+    });
+  } catch {
+    // style sheet was not injected by the popup (registered script) or tab is gone
+  }
+
+  isHaunted = false;
+  currentSettings.haunted = false;
+  await saveSite(currentOrigin, { haunted: false });
+}
+
 async function handleToggle() {
   try {
     if (isHaunted) {
-      // Restore
-      await sendMessage({ type: 'haunt:restore' });
-      await chrome.scripting.removeCSS({
-        target: { tabId: currentTab.id },
-        files: ['src/content/haunt.css']
-      });
-      
-      isHaunted = false;
-      currentSettings.haunted = false;
-      await saveSite(currentOrigin, { haunted: false });
-      
+      await restorePage();
     } else {
-      // Haunt
-      await chrome.scripting.insertCSS({
-        target: { tabId: currentTab.id },
-        files: ['src/content/haunt.css']
-      });
-      
-      await chrome.scripting.executeScript({
-        target: { tabId: currentTab.id },
-        files: ['src/content/haunt.js']
-      });
-      
-      await sendMessage({ type: 'haunt:apply', settings: currentSettings });
-      
-      isHaunted = true;
-      currentSettings.haunted = true;
-      await saveSite(currentOrigin, { haunted: true });
+      await hauntPage();
     }
-    
-    updateUI();
-    
   } catch (error) {
     console.error('Toggle error:', error);
-    // If script not found, inject and retry once
-    if (error.message && error.message.includes('Could not establish connection')) {
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId: currentTab.id },
-          files: ['src/content/haunt.js']
-        });
-        await sendMessage({ type: isHaunted ? 'haunt:restore' : 'haunt:apply', settings: currentSettings });
-      } catch (retryError) {
-        console.error('Retry failed:', retryError);
-      }
-    }
   }
+  updateUI();
 }
 
 async function handleFogChange() {
   currentSettings.fog = elements.fogCheckbox.checked;
-  elements.densityRow.style.display = currentSettings.fog ? 'flex' : 'none';
+  elements.densityRow.hidden = !currentSettings.fog;
   await saveAndUpdate();
 }
 
