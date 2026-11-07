@@ -1,0 +1,60 @@
+/* Haunt Any Page: skin stylesheet
+ * All selectors scoped under html.haunt-on */
+
+/* === Palette filter: light pages === */
+html.haunt-on:not(.haunt-dark-page) {
+  filter: invert(1) hue-rotate(180deg) sepia(0.35) brightness(0.88) contrast(0.95) !important;
+  background: #fff !important;
+}
+
+/* Counter-filter for media so they're not negative, and apply grey-sepia-dim */
+html.haunt-on:not(.haunt-dark-page) img,
+html.haunt-on:not(.haunt-dark-page) video,
+html.haunt-on:not(.haunt-dark-page) picture,
+html.haunt-on:not(.haunt-dark-page) canvas,
+html.haunt-on:not(.haunt-dark-page) iframe,
+html.haunt-on:not(.haunt-dark-page) svg image,
+html.haunt-on:not(.haunt-dark-page) [style*="background-image"] {
+  filter: invert(1) hue-rotate(180deg) grayscale(0.6) sepia(0.4) brightness(0.7) !important;
+}
+
+/* Link recoloring for prose links on light pages (candle orange after filter) */
+html.haunt-on:not(.haunt-dark-page) :where(p, li, dd, figcaption, blockquote) a:not([role="button"]) {
+  color: #8a4a00 !important;
+}
+
+/* Link recoloring for prose links on dark pages */
+html.haunt-on.haunt-dark-page :where(p, li, dd, figcaption, blockquote) a:not([role="button"]) {
+  color: #ffb04a !important;
+}
+
+/* === Palette filter: dark pages === */
+html.haunt-on.haunt-dark-page {
+  filter: sepia(0.35) brightness(0.9) !important;
+}
+
+/* === Old-book font override === */
+html.haunt-on.haunt-font :where(body, body *):not(
+  code, code *, pre, pre *, kbd, samp, 
+  input, textarea, select,
+  svg, svg *, math,
+  i, [class*="icon"], [class*="symbol"], [class*="fa-"],
+  [aria-hidden="true"]
+) {
+  font-family: "Haunt Fell", Georgia, serif !important;
+}
+
+/* === Overlay host element === */
+html.haunt-on haunt-any-page-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+  z-index: 2147483647 !important;
+  display: block !important;
+}
+
+/* Counter-filter for overlay on light pages so fog/bats keep real colors */
+html.haunt-on:not(.haunt-dark-page) haunt-any-page-overlay {
+  filter: invert(1) hue-rotate(180deg) !important;
+}
