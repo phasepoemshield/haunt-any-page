@@ -17,7 +17,7 @@ Deadlines (Pacific Time; Moscow is PT + 11 h in December):
 - [x] Category: Costume Contest
 - [x] Text description in English: see `docs/devpost-submission.md`
 - [x] Install instructions or test build link (README "Install (unpacked)" + release zip `haunt-any-page-v0.1.0.zip`)
-- [ ] Demo video under 3 minutes on YouTube (public or unlisted)
+- [x] Demo video under 3 minutes (`~/Movies/HauntAnyPage-demo/haunt-any-page-demo.mp4`, 1:39, attached to release `v0.1.0` — upload to YouTube as public/unlisted for the Devpost video URL field)
 - [x] Write-up in English on how Kiro was used: see `docs/kiro-usage.md` and `docs/devpost-submission.md`
 
 ## Demo video outline (about 2 minutes)

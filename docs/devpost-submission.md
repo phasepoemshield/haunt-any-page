@@ -12,6 +12,7 @@ Use the sections below directly in the Devpost submission form.
 - **Built With**: `kiro`, `javascript`, `chrome-extension`, `manifest-v3`, `css3`, `html5`, `canvas`, `shadow-dom`, `web-animations-api`, `puppeteer`
 - **Public GitHub Repository**: `https://github.com/phasepoemshield/haunt-any-page`
 - **Test Build / Release ZIP**: `https://github.com/phasepoemshield/haunt-any-page/releases/download/v0.1.0/haunt-any-page-v0.1.0.zip`
+- **Demo Video File (1:39, 720p60)**: `/Users/timur/Movies/HauntAnyPage-demo/haunt-any-page-demo.mp4` (also attached at `https://github.com/phasepoemshield/haunt-any-page/releases/download/v0.1.0/haunt-any-page-demo.mp4` — upload to YouTube as Unlisted/Public and paste the YouTube URL into Devpost)
 
 ---
 
