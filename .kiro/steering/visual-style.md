@@ -59,7 +59,7 @@ Source: `concept/icon.svg`. Flat: a `#161412` rounded tile (radius 28/128) with 
 
 ## Skin on the page
 
-- Light pages are inverted with `invert(1) hue-rotate(180deg)` plus a warm `sepia` and slight darkening, so text becomes bone on near-black. Media is flipped back and made grey-sepia and dim.
+- Light pages are inverted with `invert(1) hue-rotate(180deg)` plus a warm `sepia` and slight darkening, so text becomes bone on near-black. Media is flipped back and keeps its colors (the page-wide sepia and dimming already tint it); do not add grayscale or a second sepia pass: thumbnails on YouTube came out colorless and hard to tell apart.
 - The filter keeps hues, so blue links would stay blue. On light pages give prose links (`:where(p, li, dd, figcaption, blockquote) a:not([role="button"])`) `color: #8a4a00 !important`: after the filter this dark amber shows as a warm candle tone. On dark pages use `#ffb04a`. Do not recolor every link: button-like links and colored nav bars lose contrast.
 - CSS gradient backgrounds are not counter-filtered; that is fine (they turn dark and moody).
 - Fog (Weather) must look like drifting wisps, never a single soft blob: layered noise clouds, denser near the bottom, slowly sliding at different speeds. Reference: `concept/haunted-github.png`. Details in design.md.
