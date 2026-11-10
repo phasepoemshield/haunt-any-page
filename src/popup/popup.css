@@ -145,6 +145,16 @@ body {
   color: var(--muted);
 }
 
+/* Weather group: introduced by whitespace and one plain muted label */
+.weather {
+  margin-top: 22px;
+}
+
+.group-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
 /* Checkbox */
 .checkbox {
   appearance: none;
@@ -262,6 +272,7 @@ body {
 .popup.unsupported-page .status,
 .popup.unsupported-page .primary-button,
 .popup.unsupported-page .effects,
+.popup.unsupported-page .weather,
 .popup.unsupported-page .hairline,
 .popup.unsupported-page .remember-row {
   display: none;

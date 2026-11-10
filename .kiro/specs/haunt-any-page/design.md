@@ -59,10 +59,11 @@ tests/                   node --test unit tests + e2e smoke test
 
 ```js
 {
-  "defaults": { fog: true, fogDensity: 55, bats: true, font: true, flicker: false },
+  "defaults": { bats: true, font: true, flicker: false },
   "sites": {
     "https://en.wikipedia.org": {
-      haunted: true, fog: true, fogDensity: 55, bats: true, font: true, flicker: false, remember: true
+      haunted: true, bats: true, font: true, flicker: false, remember: true,
+      weather: { fog: true, fogDensity: 55, fogSpeed: 50, fogHeight: 60 }
     }
   }
 }
@@ -77,7 +78,7 @@ The key is `new URL(tab.url).origin`. Only origins and booleans/numbers are stor
 3. On "Haunt this page": `chrome.scripting.insertCSS({ files: ['src/content/haunt.css'] })`, then `chrome.scripting.executeScript({ files: ['src/content/haunt.js'] })`, then `chrome.tabs.sendMessage(tab.id, { type: 'haunt:apply', settings })`. `activeTab` grants this access because the user clicked the action.
 4. On "Restore the page": `sendMessage({ type: 'haunt:restore' })`, then `chrome.scripting.removeCSS(...)`.
 5. On any option change: save, and if haunted, `sendMessage({ type: 'haunt:apply', settings })`.
-6. On "Haunt this site every time" checked: `chrome.permissions.request({ origins: [origin + '/*'] })` directly inside the click handler (it needs a user gesture). On deny, uncheck. On uncheck: `chrome.permissions.remove(...)` and save `remember: false`.
+6. On "Remember this site" checked: `chrome.permissions.request({ origins: [origin + '/*'] })` directly inside the click handler (it needs a user gesture). On deny, uncheck. On uncheck: `chrome.permissions.remove(...)` and save `remember: false`.
 
 ## Background (`src/background.js`)
 
@@ -90,9 +91,9 @@ The key is `new URL(tab.url).origin`. Only origins and booleans/numbers are stor
 - Wrapped in an IIFE with a guard: `if (window.__hauntAnyPage) return;` then `window.__hauntAnyPage = { apply, restore }`. Running it twice is safe (Req 1.4).
 - Listens for `haunt:apply` and `haunt:restore` messages.
 - `apply(settings)`:
-  - On `document.documentElement` sets class `haunt-on` and toggles `haunt-fog`, `haunt-bats`, `haunt-font`, `haunt-flicker`, `haunt-dark-page`; sets `--haunt-fog` to `fogDensity / 100`.
+  - On `document.documentElement` sets class `haunt-on` and toggles `haunt-bats`, `haunt-font`, `haunt-flicker`, `haunt-dark-page`.
   - Detects an already dark page once `document.body` exists (Req 2.8) and sets `haunt-dark-page`.
-  - Creates the overlay once: `<haunt-any-page-overlay aria-hidden="true">` appended to `documentElement` with a closed shadow root that holds the fog layers, four SVG bats (the path from the concept) and the candle vignette. The shadow styles are a constructed `CSSStyleSheet` assigned to `shadowRoot.adoptedStyleSheets` (not a `<style>` element), so strict page CSPs cannot block them. Bat SVGs are built with `createElementNS`, never with `innerHTML` of page-derived strings.
+  - Creates the overlay once: `<haunt-any-page-overlay aria-hidden="true">` appended to `documentElement` with a closed shadow root that holds the six SVG bats (the path from the concept) and the candle vignette. The shadow styles are a constructed `CSSStyleSheet` assigned to `shadowRoot.adoptedStyleSheets` (not a `<style>` element), so strict page CSPs cannot block them. Bat SVGs are built with `createElementNS`, never with `innerHTML` of page-derived strings.
   - Loads the bundled font with the FontFace API: `const face = new FontFace('Haunt Fell', \`url("${chrome.runtime.getURL('assets/fonts/IMFellDWPica-Regular.ttf')}")\`); document.fonts.add(face);`. No `<style>` element and no `__MSG_@@extension_id__` URL (that static URL does not work with `use_dynamic_url: true`).
 - `restore()` removes the classes, the custom property and the overlay element, and calls `document.fonts.delete(face)`. After restore `document.documentElement.outerHTML` equals the value captured before the first apply, apart from changes the page made itself (Req 1.3).
 
@@ -105,6 +106,7 @@ Every selector is scoped under `html.haunt-on` so the file is inert until applie
 - Dark pages: `html.haunt-on.haunt-dark-page { filter: sepia(.35) brightness(.9); }`.
 - Font: `html.haunt-on.haunt-font :where(body, body *):not(code, code *, pre, pre *, kbd, samp, input, textarea, select, svg, svg *, math, i, [class*="icon"], [class*="symbol"], [class*="fa-"], [aria-hidden="true"])` gets `font-family: "Haunt Fell", Georgia, serif !important`. A list of text tags is not enough: YouTube, GitHub and others put text in `div`, `span` and custom elements.
 - Overlay host: `position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 2147483647; display: block` (all `!important`), and on light pages the same `invert(1) hue-rotate(180deg)` counter-filter so fog and bats keep their real colors.
+- Fog lives in Weather, not in the skin (see "Weather" below). Tuned details:
 - Fog (wisps, not a blob): three layers of fractal value noise drawn once into small `<canvas>` elements inside the shadow root (no images, no data URLs, so page CSP cannot block them).
   - Noise: 5 octaves of value noise whose lattice wraps in x (period = base scale × octave frequency), so the tile repeats seamlessly; wrapping only the coordinate, as `x % tile`, leaves a visible seam. Octave k uses `period = scale · 2^k` and seed `seed + k`; sample at `(x/w · period, y/h · period · (h/w) · 2)`. Each canvas holds the same 320x140 tile twice side by side. Alpha = `clamp((n - threshold) / (1 - threshold)) ^ 1.1`, multiplied by `(0.35 + 0.65 · (y/h)^1.3)` so the fog is denser near the bottom, and by a smoothstep over the top 35% of the layer so shorter layers have no hard upper edge.
   - Layers (all values matter; the base scale is the number of noise cells across one 320px tile). Each is anchored to the bottom, 200% wide, and drifts `translateX(0 → -50%)` linearly:
@@ -113,7 +115,7 @@ Every selector is scoped under `html.haunt-on` so the file is inert until applie
     | bone | `#e9e3d2` | 11 | 3 | 0.36 | 100% | 0.55 | 110 s |
     | cool | `#cfe6df` | 23 | 4 | 0.30 | 75% | 0.9 | 70 s |
     | warm | `#e6d8bd` | 37 | 6 | 0.34 | 55% | 0.8 | 45 s, reversed |
-  - A wrapper "breathes" (opacity 1 → .7, 12 s alternate). Overall opacity is `calc(var(--haunt-fog) * 1.35)` (clamped by the browser to 1): `--haunt-fog` is the density slider value / 100, set on `<html>`; the shadow styles must read exactly this variable name (a different name silently disables the slider). The 1.35 factor makes the default 55% match the approved look.
+  - A wrapper "breathes" (opacity 1 → .7, 12 s alternate). Density, speed and height are written straight to inline styles and to the drift animations' playback rate (no CSS variables, so there is no name to get wrong): root opacity = `min(1, density/100 · 1.35)`, root height = `15 + 0.85 · height` percent, playback rate = `0.25 + 1.5 · speed/100`. The 1.35 factor makes the default 55% match the approved look.
   - Building the canvases took 30 to 55 ms on real sites; do it once per page and keep the canvases.
 - Bats: a small flight simulation in one `requestAnimationFrame` loop (cancelled on restore). Six bats, each an `<svg viewBox="-50 -50 100 100">` whose `transform` is `translate(x−50, y−50) rotate(tilt) scale(span/72)` and whose single `<path d>` is rebuilt every frame. Rejected earlier attempts, so do not repeat them: keyframed paths with a CSS `scaleY` flap ("like autumn leaves, no physics, no wings"), and a view from below rotated to the heading ("looks like a bird", bats bunched together).
   - Front view, the classic bat silhouette. Local frame x = right, y = down, body at (0, 0); the left wing mirrors x. The bat does not rotate to its heading; it only leans into horizontal motion: `tilt = clamp(vx / (2.2·cruise), ±0.45 rad)`.
@@ -151,3 +153,13 @@ A throwaway prototype of this skin (same CSS, overlay and FontFace approach) was
 - Unit tests (`node --test`): settings defaults/merge, origin keying, and the check scripts in `scripts/`.
 - E2E smoke test (`tests/e2e.test.mjs`, Puppeteer + Chrome for Testing, launched with `--load-extension`): opens `tests/fixtures/page.html` from a local static server, injects through the extension, asserts the classes and overlay exist, restores, and asserts `outerHTML` equals the original.
 - Manual checklist in `README.md` on Wikipedia, GitHub, a news site and an already dark site.
+
+## Weather (`src/content/haunt.js`)
+
+- Separate host `<haunt-any-page-weather>` with its own closed shadow root, `z-index: 2147483646` (below the bats), so fog works on a page that is not haunted and is untouched by restore. `haunt.css` adds the same invert counter-filter for it on haunted light pages.
+- Messages: `weather:apply` with `{ fog, fogDensity, fogSpeed, fogHeight }` and `weather:status` (replies `{ fog }`). The popup injects `haunt.js` itself when fog is switched on for a page that has no content script.
+- Layer heights are a share of the fog root, which the Height slider sizes; the upper fade is baked into each canvas, so no height has a hard edge.
+- Palette by tone. Dark or haunted pages: the table above. Normal light pages: slate grey `[98,108,122]`, `[84,100,110]`, `[112,106,98]`, thresholds +0.06 to +0.08 and alpha × 0.7, so there are clear gaps and no grey veil.
+- Tone detection: the body does not exist at `document_start` and the page's style sheets may not be loaded, so the first render waits for `<body>` and the tone is checked again on `DOMContentLoaded`, on `load` and 1.5 s later (some pages switch to a dark theme in a script). The canvases are rebuilt only when the tone changes.
+- Storage: `sites[origin].weather`, written by `saveWeather` and never overwritten by the skin settings.
+- The background worker registers the content script for a remembered site when it is haunted or its fog is on.

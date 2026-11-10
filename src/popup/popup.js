@@ -1,9 +1,10 @@
 // Popup logic
-import { DEFAULTS, originOf, loadSite, saveSite } from '../shared/settings.js';
+import { DEFAULTS, originOf, loadSite, saveSite, loadWeather, saveWeather } from '../shared/settings.js';
 
 let currentTab = null;
 let currentOrigin = null;
 let currentSettings = null;
+let currentWeather = null;
 let isHaunted = false;
 
 // DOM elements
@@ -16,8 +17,10 @@ const elements = {
   effects: document.getElementById('effects'),
   unsupported: document.getElementById('unsupported'),
   fogCheckbox: document.getElementById('fogCheckbox'),
-  densityRow: document.getElementById('densityRow'),
+  fogControls: document.getElementById('fogControls'),
   densitySlider: document.getElementById('densitySlider'),
+  speedSlider: document.getElementById('speedSlider'),
+  heightSlider: document.getElementById('heightSlider'),
   batsCheckbox: document.getElementById('batsCheckbox'),
   fontCheckbox: document.getElementById('fontCheckbox'),
   flickerCheckbox: document.getElementById('flickerCheckbox'),
@@ -53,6 +56,15 @@ async function init() {
       await saveSite(currentOrigin, { haunted: isHaunted });
     }
 
+    // Weather is stored apart from the haunt settings. Like the haunted flag, the
+    // saved fog flag can be stale after a reload: the page itself has the final word.
+    currentWeather = await loadWeather(currentOrigin);
+    const fogUp = await pageHasFog();
+    if (fogUp !== currentWeather.fog) {
+      currentWeather.fog = fogUp;
+      await saveWeather(currentOrigin, { fog: fogUp });
+    }
+
     // Update UI
     updateUI();
     
@@ -82,9 +94,11 @@ function updateUI() {
   elements.buttonText.textContent = isHaunted ? 'Restore the page' : 'Haunt this page';
   
   // Effect controls
-  elements.fogCheckbox.checked = currentSettings.fog ?? DEFAULTS.fog;
-  elements.densitySlider.value = currentSettings.fogDensity ?? DEFAULTS.fogDensity;
-  elements.densityRow.hidden = !elements.fogCheckbox.checked;
+  elements.fogCheckbox.checked = currentWeather.fog;
+  elements.densitySlider.value = currentWeather.fogDensity;
+  elements.speedSlider.value = currentWeather.fogSpeed;
+  elements.heightSlider.value = currentWeather.fogHeight;
+  elements.fogControls.hidden = !currentWeather.fog;
   elements.batsCheckbox.checked = currentSettings.bats ?? DEFAULTS.bats;
   elements.fontCheckbox.checked = currentSettings.font ?? DEFAULTS.font;
   elements.flickerCheckbox.checked = currentSettings.flicker ?? DEFAULTS.flicker;
@@ -99,7 +113,9 @@ function attachListeners() {
   
   // Effect controls
   elements.fogCheckbox.addEventListener('change', handleFogChange);
-  elements.densitySlider.addEventListener('input', handleDensityChange);
+  elements.densitySlider.addEventListener('input', handleFogSlider);
+  elements.speedSlider.addEventListener('input', handleFogSlider);
+  elements.heightSlider.addEventListener('input', handleFogSlider);
   elements.batsCheckbox.addEventListener('change', handleEffectChange);
   elements.fontCheckbox.addEventListener('change', handleEffectChange);
   elements.flickerCheckbox.addEventListener('change', handleEffectChange);
@@ -169,15 +185,51 @@ async function handleToggle() {
   updateUI();
 }
 
-async function handleFogChange() {
-  currentSettings.fog = elements.fogCheckbox.checked;
-  elements.densityRow.hidden = !currentSettings.fog;
-  await saveAndUpdate();
+async function pageHasFog() {
+  try {
+    const reply = await sendMessage({ type: 'weather:status' });
+    return Boolean(reply && reply.fog);
+  } catch {
+    return false;
+  }
 }
 
-async function handleDensityChange() {
-  currentSettings.fogDensity = parseInt(elements.densitySlider.value, 10);
-  await saveAndUpdate();
+// Push the weather to the page. Fog works on a page that is not haunted, so the content
+// script is injected here when it is missing (injecting twice is safe).
+async function sendWeather() {
+  const message = { type: 'weather:apply', weather: currentWeather };
+  try {
+    await sendMessage(message);
+  } catch {
+    if (!currentWeather.fog) return;
+    await chrome.scripting.executeScript({
+      target: { tabId: currentTab.id },
+      files: ['src/content/haunt.js']
+    });
+    await sendMessage(message);
+  }
+}
+
+async function saveAndApplyWeather() {
+  try {
+    await saveWeather(currentOrigin, currentWeather);
+    await sendWeather();
+  } catch (error) {
+    console.error('Weather update failed:', error);
+  }
+}
+
+async function handleFogChange() {
+  currentWeather.fog = elements.fogCheckbox.checked;
+  elements.fogControls.hidden = !currentWeather.fog;
+  await saveAndApplyWeather();
+}
+
+async function handleFogSlider() {
+  currentWeather.fogDensity = parseInt(elements.densitySlider.value, 10);
+  currentWeather.fogSpeed = parseInt(elements.speedSlider.value, 10);
+  currentWeather.fogHeight = parseInt(elements.heightSlider.value, 10);
+  await saveAndApplyWeather();
 }
 
 async function handleEffectChange(event) {
@@ -193,7 +245,9 @@ async function handleEffectChange(event) {
 }
 
 async function saveAndUpdate() {
-  await saveSite(currentOrigin, currentSettings);
+  // Weather has its own storage key; never write a stale copy of it back.
+  const { weather, ...hauntSettings } = currentSettings;
+  await saveSite(currentOrigin, hauntSettings);
   
   if (isHaunted) {
     try {

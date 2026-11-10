@@ -7,25 +7,25 @@ Deadlines (Pacific Time; Moscow is PT + 11 h in December):
 
 ## Repository
 
-- [ ] Public GitHub repository
-- [ ] `LICENSE` (MIT) at the root
-- [ ] `/.kiro` at the root with specs, steering and hooks; `.kiro` is not in `.gitignore`
-- [ ] All code written with Kiro, following `.kiro/specs/haunt-any-page/tasks.md`
+- [x] Public GitHub repository (`https://github.com/phasepoemshield/haunt-any-page`)
+- [x] `LICENSE` (MIT) at the root
+- [x] `/.kiro` at the root with specs, steering and hooks; `.kiro` is not in `.gitignore`
+- [x] All code written with Kiro, following `.kiro/specs/haunt-any-page/tasks.md`
 
 ## Devpost form
 
-- [ ] Category: Costume Contest
-- [ ] Text description in English
-- [ ] Install instructions or test build link (README "Install (unpacked)" + a release zip)
+- [x] Category: Costume Contest
+- [x] Text description in English: see `docs/devpost-submission.md`
+- [x] Install instructions or test build link (README "Install (unpacked)" + release zip `haunt-any-page-v0.1.0.zip`)
 - [ ] Demo video under 3 minutes on YouTube (public or unlisted)
-- [ ] Write-up in English on how Kiro was used: see `docs/kiro-usage.md`
+- [x] Write-up in English on how Kiro was used: see `docs/kiro-usage.md` and `docs/devpost-submission.md`
 
 ## Demo video outline (about 2 minutes)
 
-1. 0:00 Plain Wikipedia article, click the icon, "Haunt this page": fog, bats, old-book font.
-2. 0:30 Popup options: fog density slider, toggle bats and font, candle flicker.
+1. 0:00 Plain Wikipedia article, click the icon, "Haunt this page": bats, old-book font.
+2. 0:30 Popup options: toggle bats and font, candle flicker. Then Weather: Fog on, density, speed and height sliders; fog also works on a normal page.
 3. 0:50 Restore: the page is back exactly as it was.
-4. 1:05 "Always haunt this site": reload, it opens haunted.
+4. 1:05 "Remember this site": reload, it opens haunted.
 5. 1:20 A second site (news or GitHub) and an already dark site.
 6. 1:35 Kiro: the spec, steering docs, and a hook catching a contrast or privacy mistake on save.
 7. 1:55 Permissions: nothing leaves the browser.

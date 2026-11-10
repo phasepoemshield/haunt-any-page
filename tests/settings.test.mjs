@@ -32,12 +32,11 @@ globalThis.chrome = {
 };
 
 // Import after setting up global chrome
-const { DEFAULTS, originOf, loadSite, saveSite, loadAllSites } = await import('../src/shared/settings.js');
+const { DEFAULTS, WEATHER_DEFAULTS, originOf, loadSite, saveSite, loadAllSites, loadWeather, saveWeather } = await import('../src/shared/settings.js');
 
 test('settings: DEFAULTS has expected keys', () => {
   assert.equal(typeof DEFAULTS, 'object');
-  assert.equal(DEFAULTS.fog, true);
-  assert.equal(DEFAULTS.fogDensity, 55);
+  assert.equal(DEFAULTS.fog, undefined, 'fog is weather, not an effect');
   assert.equal(DEFAULTS.bats, true);
   assert.equal(DEFAULTS.font, true);
   assert.equal(DEFAULTS.flicker, false);
@@ -69,23 +68,20 @@ test('settings: loadSite merges defaults with site settings', async () => {
   const settings = await loadSite('https://example.com');
   assert.equal(settings.fog, false);
   assert.equal(settings.bats, false);
-  assert.equal(settings.fogDensity, 55); // from defaults
+  assert.equal(settings.flicker, false); // from defaults
   assert.equal(settings.font, true); // from defaults
 });
 
 test('settings: loadSite uses custom defaults if set', async () => {
   storage = {
     defaults: {
-      fog: false,
-      fogDensity: 80,
-      bats: true,
+      bats: false,
       font: false,
       flicker: true
     }
   };
   const settings = await loadSite('https://other.com');
-  assert.equal(settings.fog, false);
-  assert.equal(settings.fogDensity, 80);
+  assert.equal(settings.bats, false);
   assert.equal(settings.flicker, true);
 });
 
@@ -130,4 +126,27 @@ test('settings: loadAllSites returns empty object when no sites', async () => {
   storage = {};
   const sites = await loadAllSites();
   assert.deepEqual(sites, {});
+});
+
+test('weather: defaults are off with mid sliders', async () => {
+  storage = {};
+  assert.deepEqual(await loadWeather('https://example.com'), WEATHER_DEFAULTS);
+  assert.equal(WEATHER_DEFAULTS.fog, false);
+});
+
+test('weather: stored per site and apart from haunt settings', async () => {
+  storage = {};
+  await saveSite('https://a.com', { haunted: true, bats: false });
+  await saveWeather('https://a.com', { fog: true, fogHeight: 80 });
+  await saveSite('https://a.com', { font: false });
+  await saveWeather('https://b.com', { fogDensity: 10 });
+
+  const a = await loadWeather('https://a.com');
+  assert.equal(a.fog, true);
+  assert.equal(a.fogHeight, 80);
+  assert.equal(a.fogDensity, WEATHER_DEFAULTS.fogDensity);
+  assert.equal((await loadWeather('https://b.com')).fog, false);
+  assert.equal((await loadWeather('https://b.com')).fogDensity, 10);
+  assert.equal(storage.sites['https://a.com'].haunted, true);
+  assert.equal(storage.sites['https://a.com'].bats, false);
 });

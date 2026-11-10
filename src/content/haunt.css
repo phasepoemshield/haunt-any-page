@@ -54,7 +54,8 @@ html.haunt-on haunt-any-page-overlay {
   display: block !important;
 }
 
-/* Counter-filter for overlay on light pages so fog/bats keep real colors */
-html.haunt-on:not(.haunt-dark-page) haunt-any-page-overlay {
+/* Counter-filter for overlay and weather on light pages so fog/bats keep real colors */
+html.haunt-on:not(.haunt-dark-page) haunt-any-page-overlay,
+html.haunt-on:not(.haunt-dark-page) haunt-any-page-weather {
   filter: invert(1) hue-rotate(180deg) !important;
 }

@@ -7,7 +7,9 @@
   if (window.__hauntAnyPage) return;
   
   let overlayElement = null;
-  let fogCanvases = null;
+  let weatherState = null;
+  let weatherSettings = null;
+  let pageChecksScheduled = false;
   let batElements = [];
   let batSimulationFrame = null;
   let fontFace = null;
@@ -38,7 +40,11 @@
 
   function detectDarkPage() {
     if (!document.body) return false;
-    const luminance = backgroundLuminance(document.body) ?? backgroundLuminance(document.documentElement) ?? 1;
+    const html = document.documentElement;
+    const wasOn = html.classList.contains('haunt-on');
+    if (wasOn) html.classList.remove('haunt-on');
+    const luminance = backgroundLuminance(document.body) ?? backgroundLuminance(html) ?? 1;
+    if (wasOn) html.classList.add('haunt-on');
     return luminance < 0.2;
   }
   
@@ -46,34 +52,20 @@
     const html = document.documentElement;
     html.classList.add('haunt-on');
     
-    // Detect dark page
-    if (document.body) {
-      originalDarkPage = detectDarkPage();
-    } else {
-      const observer = new MutationObserver(() => {
-        if (document.body) {
-          originalDarkPage = detectDarkPage();
-          html.classList.toggle('haunt-dark-page', originalDarkPage);
-          observer.disconnect();
-        }
-      });
-      observer.observe(html, { childList: true });
-    }
+    // Detect dark page. At document_start there is no body yet, and the page's own
+    // style sheets may not be loaded, so the answer is checked again once the page is ready.
+    originalDarkPage = detectDarkPage();
     html.classList.toggle('haunt-dark-page', originalDarkPage);
-    
+    schedulePageChecks();
+    syncWeatherTone();
+
     // Toggle effect classes
-    html.classList.toggle('haunt-fog', settings.fog);
     html.classList.toggle('haunt-bats', settings.bats);
     html.classList.toggle('haunt-font', settings.font);
     html.classList.toggle('haunt-flicker', settings.flicker);
     
-    // Set fog density
-    if (settings.fog && typeof settings.fogDensity === 'number') {
-      html.style.setProperty('--haunt-fog', (settings.fogDensity / 100).toFixed(2));
-    }
-    
     // Load font
-    if (settings.font && !fontFace) {
+    if (settings.font && !fontFace && typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
       const fontUrl = chrome.runtime.getURL('assets/fonts/IMFellDWPica-Regular.ttf');
       fontFace = new FontFace('Haunt Fell', `url("${fontUrl}")`);
       document.fonts.add(fontFace);
@@ -81,8 +73,7 @@
     }
     
     // Build the overlay once; rebuild only when an effect is switched on or off.
-    // Moving the density slider only changes --haunt-fog, so bats keep flying.
-    const overlayKey = [settings.fog, settings.bats, settings.flicker].join();
+    const overlayKey = [settings.bats, settings.flicker].join();
     if (!overlayElement) {
       createOverlay(settings);
       appliedOverlayKey = overlayKey;
@@ -102,12 +93,6 @@
     const styles = createOverlayStyles(settings);
     shadow.adoptedStyleSheets = [styles];
     
-    // Create fog layers
-    if (settings.fog) {
-      const fogContainer = createFogLayers();
-      shadow.appendChild(fogContainer);
-    }
-    
     // Create bats
     if (settings.bats) {
       createBats(shadow);
@@ -122,7 +107,7 @@
   }
   
   function updateOverlay(settings) {
-    // Recreate overlay to update fog/bats visibility
+    // Recreate overlay to update bats/flicker
     if (overlayElement) {
       stopBatSimulation();
       overlayElement.remove();
@@ -148,47 +133,6 @@
         z-index: 2147483647;
       }
       
-      .fog-container {
-        position: absolute;
-        inset: 0;
-        /* --haunt-fog (0..1) is set on <html> by apply() from the density slider.
-           The 1.35 factor keeps the default 55% at the look approved in the prototype. */
-        --fog: calc(var(--haunt-fog, 0.55) * 1.35);
-        opacity: ${settings.fog ? 'var(--fog)' : '0'};
-        ${reducedMotion ? '' : 'animation: fog-breathe 12s ease-in-out infinite alternate;'}
-      }
-
-      /* Layers sit at the bottom and differ in height, so fog is thicker near the ground.
-         Each is 200% wide (two identical tiles) and drifts by exactly one tile. */
-      .fog-layer {
-        position: absolute;
-        left: 0;
-        bottom: 0;
-        width: 200%;
-      }
-
-      .fog-layer.bone { height: 100%; opacity: 0.55; ${reducedMotion ? '' : 'animation: fog-drift 110s linear infinite;'} }
-      .fog-layer.cool { height: 75%; opacity: 0.9; ${reducedMotion ? '' : 'animation: fog-drift 70s linear infinite;'} }
-      .fog-layer.warm { height: 55%; opacity: 0.8; ${reducedMotion ? '' : 'animation: fog-drift 45s linear infinite reverse;'} }
-
-      .fog-layer canvas {
-        display: block;
-        width: 100%;
-        height: 100%;
-      }
-
-      ${reducedMotion ? '' : `
-      @keyframes fog-drift {
-        from { transform: translateX(0); }
-        to { transform: translateX(-50%); }
-      }
-
-      @keyframes fog-breathe {
-        from { opacity: var(--fog); }
-        to { opacity: calc(var(--fog) * 0.7); }
-      }
-      `}
-
       .bat {
         position: absolute;
         visibility: hidden;
@@ -224,36 +168,184 @@
     return sheet;
   }
   
-  // Fog: three layers of fractal value noise drawn once into small canvases.
-  // The noise lattice wraps horizontally (period = base scale), so the 320px tile
-  // repeats without a seam. Each canvas holds the tile twice side by side.
-  const FOG_LAYERS = [
-    { cls: 'bone', rgb: [233, 227, 210], seed: 11, scale: 3, threshold: 0.36 },
-    { cls: 'cool', rgb: [207, 230, 223], seed: 23, scale: 4, threshold: 0.30 },
-    { cls: 'warm', rgb: [230, 216, 189], seed: 37, scale: 6, threshold: 0.34 }
-  ];
+  // ===== Weather: fog =====
+  // Independent of the haunted skin: it has its own host element and shadow root, so it
+  // works on a page that is not haunted and survives "Restore the page".
+  // Three layers of fractal value noise are drawn once into small canvases. The noise
+  // lattice wraps horizontally (period = base scale), so the 320px tile repeats without
+  // a seam. Each canvas holds the tile twice side by side and drifts by exactly one tile.
+  const FOG_PALETTES = {
+    // Over a dark page (or a haunted one): pale bone wisps.
+    dark: {
+      alpha: 1,
+      layers: [
+        { cls: 'bone', rgb: [233, 227, 210], seed: 11, scale: 3, threshold: 0.36, h: 1.00, opacity: 0.55, secs: 110, reverse: false },
+        { cls: 'cool', rgb: [207, 230, 223], seed: 23, scale: 4, threshold: 0.30, h: 0.75, opacity: 0.90, secs: 70, reverse: false },
+        { cls: 'warm', rgb: [230, 216, 189], seed: 37, scale: 6, threshold: 0.34, h: 0.55, opacity: 0.80, secs: 45, reverse: true }
+      ]
+    },
+    // Over a normal light page pale fog would be invisible, so the wisps are slate grey.
+    // Higher thresholds keep clear gaps between them: fog, not a grey veil.
+    light: {
+      alpha: 0.7,
+      layers: [
+        { cls: 'bone', rgb: [98, 108, 122], seed: 11, scale: 3, threshold: 0.42, h: 1.00, opacity: 0.50, secs: 110, reverse: false },
+        { cls: 'cool', rgb: [84, 100, 110], seed: 23, scale: 4, threshold: 0.38, h: 0.75, opacity: 0.80, secs: 70, reverse: false },
+        { cls: 'warm', rgb: [112, 106, 98], seed: 37, scale: 6, threshold: 0.40, h: 0.55, opacity: 0.70, secs: 45, reverse: true }
+      ]
+    }
+  };
   const FOG_TILE_W = 320;
   const FOG_TILE_H = 140;
 
-  function createFogLayers() {
-    if (fogCanvases) return fogCanvases.container;
-
-    const container = document.createElement('div');
-    container.className = 'fog-container';
-    fogCanvases = { container, canvases: [] };
-
-    for (const layer of FOG_LAYERS) {
-      const div = document.createElement('div');
-      div.className = `fog-layer ${layer.cls}`;
-      const canvas = createFogCanvas(layer);
-      div.appendChild(canvas);
-      container.appendChild(div);
-      fogCanvases.canvases.push(canvas);
-    }
-    return container;
+  function prefersReducedMotion() {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 
-  function createFogCanvas(layer) {
+  // Dark tone: the page behind the fog is dark. A haunted page always is: light pages are
+  // inverted, and the host is counter-filtered in haunt.css so the fog keeps its true colors.
+  function weatherTone() {
+    if (document.documentElement.classList.contains('haunt-on')) return 'dark';
+    return detectDarkPage() ? 'dark' : 'light';
+  }
+
+  const WEATHER_CSS = `
+    :host { all: initial; }
+    .fog-root { position: absolute; left: 0; right: 0; bottom: 0; }
+    .fog-breathe { position: absolute; inset: 0; }
+    .fog-layer { position: absolute; left: 0; bottom: 0; width: 200%; }
+    .fog-layer canvas { display: block; width: 100%; height: 100%; }
+    @keyframes fog-breathe { from { opacity: 1; } to { opacity: 0.7; } }
+  `;
+
+  function buildWeather(tone) {
+    const host = document.createElement('haunt-any-page-weather');
+    host.setAttribute('aria-hidden', 'true');
+    host.style.cssText = 'position:fixed!important;inset:0!important;overflow:hidden!important;' +
+      'pointer-events:none!important;z-index:2147483646!important;display:block!important;';
+    const shadow = host.attachShadow({ mode: 'closed' });
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(WEATHER_CSS);
+    shadow.adoptedStyleSheets = [sheet];
+
+    const root = document.createElement('div');
+    root.className = 'fog-root';
+    const breathe = document.createElement('div');
+    breathe.className = 'fog-breathe';
+    if (!prefersReducedMotion()) {
+      breathe.style.animation = 'fog-breathe 12s ease-in-out infinite alternate';
+    }
+    root.appendChild(breathe);
+    shadow.appendChild(root);
+
+    weatherState = { host, root, breathe, tone: null, drifts: [] };
+    fillFogLayers(tone);
+    document.documentElement.appendChild(host);
+  }
+
+  function fillFogLayers(tone) {
+    const state = weatherState;
+    for (const drift of state.drifts) drift.cancel();
+    state.drifts = [];
+    state.breathe.replaceChildren();
+    state.tone = tone;
+
+    const palette = FOG_PALETTES[tone];
+    for (const layer of palette.layers) {
+      const div = document.createElement('div');
+      div.className = `fog-layer ${layer.cls}`;
+      // Layer heights are a share of the fog root, which the Height slider sizes.
+      div.style.height = `${layer.h * 100}%`;
+      div.style.opacity = String(layer.opacity);
+      div.appendChild(createFogCanvas(layer, palette.alpha));
+      state.breathe.appendChild(div);
+      if (!prefersReducedMotion()) {
+        const drift = div.animate(
+          [{ transform: 'translateX(0)' }, { transform: 'translateX(-50%)' }],
+          { duration: layer.secs * 1000, iterations: Infinity, direction: layer.reverse ? 'reverse' : 'normal' }
+        );
+        state.drifts.push(drift);
+      }
+    }
+  }
+
+  // Density, speed and height are plain numbers written to inline styles and the
+  // animations' playback rate, so moving a slider never rebuilds the canvases.
+  function updateWeatherParams() {
+    const w = weatherSettings;
+    const state = weatherState;
+    if (!w || !state) return;
+    const density = Math.max(0, Math.min(100, Number(w.fogDensity)));
+    const speed = Math.max(0, Math.min(100, Number(w.fogSpeed)));
+    const height = Math.max(0, Math.min(100, Number(w.fogHeight)));
+    // 1.35 keeps the default density at the look approved in the prototype.
+    state.root.style.opacity = String(Math.min(1, (density / 100) * 1.35));
+    state.root.style.height = `${(15 + 0.85 * height).toFixed(1)}%`;
+    const rate = 0.25 + (speed / 100) * 1.5;
+    for (const drift of state.drifts) drift.updatePlaybackRate(rate);
+  }
+
+  function renderWeather() {
+    if (!weatherSettings || !weatherSettings.fog) return;
+    // Before <body> exists the page's colors are unknown; wait for the page checks.
+    if (!document.body) return;
+    const tone = weatherTone();
+    if (!weatherState) {
+      buildWeather(tone);
+    } else if (weatherState.tone !== tone) {
+      fillFogLayers(tone);
+    }
+    if (!weatherState.host.isConnected) document.documentElement.appendChild(weatherState.host);
+    updateWeatherParams();
+  }
+
+  function applyWeather(settings) {
+    weatherSettings = { ...settings };
+    if (!weatherSettings.fog) {
+      removeWeather();
+      return;
+    }
+    schedulePageChecks();
+    renderWeather();
+  }
+
+  function removeWeather() {
+    if (weatherState) {
+      for (const drift of weatherState.drifts) drift.cancel();
+      weatherState.host.remove();
+      weatherState = null;
+    }
+  }
+
+  // The haunted skin can be switched on or off while fog is up; the fog tone follows it.
+  function syncWeatherTone() {
+    if (weatherState) renderWeather();
+  }
+
+  // Re-detect dark pages once the document and its style sheets are ready, and once
+  // more shortly after for pages that switch to a dark theme in a script.
+  function refreshPageTone() {
+    const html = document.documentElement;
+    if (html.classList.contains('haunt-on')) {
+      originalDarkPage = detectDarkPage();
+      html.classList.toggle('haunt-dark-page', originalDarkPage);
+    }
+    renderWeather();
+  }
+
+  function schedulePageChecks() {
+    if (pageChecksScheduled) return;
+    pageChecksScheduled = true;
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', refreshPageTone, { once: true });
+    }
+    if (document.readyState !== 'complete') {
+      window.addEventListener('load', refreshPageTone, { once: true });
+    }
+    setTimeout(refreshPageTone, 1500);
+  }
+
+  function createFogCanvas(layer, alphaScale) {
     const w = FOG_TILE_W;
     const h = FOG_TILE_H;
     const canvas = document.createElement('canvas');
@@ -292,7 +384,7 @@
         data[i] = r;
         data[i + 1] = g;
         data[i + 2] = b;
-        data[i + 3] = Math.round(255 * Math.pow(a, 1.1) * ground);
+        data[i + 3] = Math.round(255 * Math.pow(a, 1.1) * ground * alphaScale);
       }
     }
 
@@ -656,17 +748,19 @@
   
   function restore() {
     const html = document.documentElement;
-    html.classList.remove('haunt-on', 'haunt-fog', 'haunt-bats', 'haunt-font', 'haunt-flicker', 'haunt-dark-page');
-    html.style.removeProperty('--haunt-fog');
+    html.classList.remove('haunt-on', 'haunt-bats', 'haunt-font', 'haunt-flicker', 'haunt-dark-page');
+    if (html.classList.length === 0) {
+      html.removeAttribute('class');
+    }
     
     if (overlayElement) {
       stopBatSimulation();
       overlayElement.remove();
       overlayElement = null;
-      fogCanvases = null;
       batElements = [];
     }
     appliedOverlayKey = null;
+    syncWeatherTone();
 
     if (fontFace) {
       document.fonts.delete(fontFace);
@@ -675,30 +769,43 @@
   }
   
   // Message listener
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'haunt:apply') {
-      apply(message.settings);
-      sendResponse({ success: true });
-    } else if (message.type === 'haunt:restore') {
-      restore();
-      sendResponse({ success: true });
-    } else if (message.type === 'haunt:status') {
-      sendResponse({ haunted: document.documentElement.classList.contains('haunt-on') });
-    }
-  });
+  if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.type === 'haunt:apply') {
+        apply(message.settings);
+        sendResponse({ success: true });
+      } else if (message.type === 'haunt:restore') {
+        restore();
+        sendResponse({ success: true });
+      } else if (message.type === 'weather:apply') {
+        applyWeather(message.weather);
+        sendResponse({ success: true });
+      } else if (message.type === 'weather:status') {
+        sendResponse({ fog: Boolean(weatherState) });
+      } else if (message.type === 'haunt:status') {
+        sendResponse({ haunted: document.documentElement.classList.contains('haunt-on') });
+      }
+    });
+  }
 
   // If loaded by registerContentScripts (page still loading), apply from stored settings.
   // Content scripts cannot import src/shared/settings.js (it is not web-accessible and
   // must stay that way), so read chrome.storage.local directly. Keep these defaults in
   // sync with DEFAULTS in src/shared/settings.js.
-  if (document.readyState === 'loading') {
+  if (document.readyState === 'loading' && typeof chrome !== 'undefined' && chrome.storage?.local) {
     (async () => {
       try {
-        const defaults = { fog: true, fogDensity: 55, bats: true, font: true, flicker: false };
+        const defaults = { bats: true, font: true, flicker: false };
+        const weatherDefaults = { fog: false, fogDensity: 55, fogSpeed: 50, fogHeight: 60 };
         const stored = await chrome.storage.local.get(['defaults', 'sites']);
-        const settings = { ...(stored.defaults || defaults), ...(stored.sites?.[location.origin] || {}) };
+        const site = stored.sites?.[location.origin] || {};
+        const settings = { ...(stored.defaults || defaults), ...site };
         if (settings.haunted && settings.remember) {
           apply(settings);
+        }
+        const weather = { ...weatherDefaults, ...(site.weather || {}) };
+        if (weather.fog && settings.remember) {
+          applyWeather(weather);
         }
       } catch (error) {
         console.warn('Haunt: could not load remembered settings', error);
@@ -706,5 +813,5 @@
     })();
   }
   
-  window.__hauntAnyPage = { apply, restore };
+  window.__hauntAnyPage = { apply, restore, applyWeather, removeWeather };
 })();

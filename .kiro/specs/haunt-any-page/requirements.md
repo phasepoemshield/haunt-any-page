@@ -2,16 +2,17 @@
 
 ## Introduction
 
-Haunt Any Page is a Manifest V3 browser extension (Chrome, Edge, other Chromium browsers). With one click it turns the open website into a haunted version of itself: a dark candle-lit palette, drifting fog, flying bats, an old-book font and an optional candle flicker. A second click restores the page exactly as it was. The extension remembers the choice per site and never sends any data out of the browser.
+Haunt Any Page is a Manifest V3 browser extension (Chrome, Edge, other Chromium browsers). With one click it turns the open website into a haunted version of itself: a dark candle-lit palette, flying bats, an old-book font and an optional candle flicker. A second click restores the page exactly as it was. Weather (fog) is a separate, optional layer that works on any page, haunted or not. The extension remembers the choice per site and never sends any data out of the browser.
 
 Visual reference: `concept/haunt-any-page.html` (open it in a browser). Hackathon: Kiroween 2026, category Costume Contest.
 
 ## Glossary
 
 - **Skin**: the haunted look applied to a page (palette, font, overlay).
-- **Overlay**: one fixed, click-through layer on top of the page that holds fog, bats and the candle vignette.
+- **Overlay**: one fixed, click-through layer on top of the page that holds bats and the candle vignette.
 - **Site**: a page origin, for example `https://en.wikipedia.org`.
-- **Settings**: `{ haunted, fog, fogDensity, bats, font, flicker, remember }` for one site.
+- **Settings**: `{ haunted, bats, font, flicker, remember }` for one site.
+- **Weather**: `{ fog, fogDensity, fogSpeed, fogHeight }` for one site, stored under `weather` and independent of the skin.
 
 ## Requirement 1: Haunt and restore with one click
 
@@ -32,14 +33,28 @@ Visual reference: `concept/haunt-any-page.html` (open it in a browser). Hackatho
 
 ### Acceptance criteria
 
-1. THE SYSTEM SHALL offer four checkboxes: Fog (default on), Bats (default on), Old-book font (default on), Candle flicker (default off).
-2. THE SYSTEM SHALL offer a "Fog density" slider from 0 to 100 (default 55) that is enabled only while Fog is checked.
+1. THE SYSTEM SHALL offer three effect checkboxes: Bats (default on), Old-book font (default on), Candle flicker (default off).
+2. THE SYSTEM SHALL offer a separate Weather section (see Requirement 2a); fog is not an effect of the skin.
 3. WHEN the user changes any option while the page is haunted THE SYSTEM SHALL update the page live without reloading it.
 4. WHEN the user changes an option while the page is not haunted THE SYSTEM SHALL store it and use it at the next haunt.
 5. WHEN Old-book font is on THE SYSTEM SHALL use the bundled IM Fell DW Pica font for body text and headings and SHALL NOT change the font of code, `pre`, form fields or icon fonts.
-6. WHEN Fog is on THE SYSTEM SHALL show layered, drifting wisps of fog that are denser near the bottom of the window, not a single uniform blob.
+6. (Moved to Requirement 2a.)
 7. WHEN Bats is on THE SYSTEM SHALL fly six bats with the classic front-view bat silhouette and jointed, visibly flapping wings, driven by a flight simulation (lift on each downstroke, erratic darts); the bats SHALL spread across the whole window and SHALL NOT fly as one group.
-8. WHEN the page already has a dark background (relative luminance of the body background below 0.2) THE SYSTEM SHALL skip the color inversion and apply only the tint, fog, bats and font.
+8. WHEN the page already has a dark background (relative luminance of the body background below 0.2) THE SYSTEM SHALL skip the color inversion and apply only the tint, bats and font.
+
+## Requirement 2a: Weather
+
+**User story:** As a user, I want fog that I switch on separately from the skin, so that I can have atmosphere on a normal page or on a haunted one.
+
+### Acceptance criteria
+
+1. THE SYSTEM SHALL offer a Weather section with a Fog checkbox (default off) and, only while Fog is checked, sliders Density (default 55), Speed (default 50) and Height (default 60), each from 0 to 100.
+2. THE SYSTEM SHALL let Fog work whether or not the page is haunted; restoring the page SHALL NOT remove fog, and unchecking Fog SHALL NOT restore the page.
+3. WHEN Fog is on THE SYSTEM SHALL show layered, drifting wisps that are denser near the bottom of the window, with clear gaps between them, not a uniform grey veil and not a single blob. Layers SHALL have no hard edge and the tile SHALL repeat without a seam.
+4. WHEN the user moves a slider THE SYSTEM SHALL update the fog live without rebuilding it.
+5. THE SYSTEM SHALL choose pale fog over dark or haunted pages and slate-grey fog over normal light pages, and SHALL re-check the page tone after the document and its style sheets have loaded.
+6. THE SYSTEM SHALL store weather settings per site under `weather`, apart from the skin settings.
+7. WHEN reduce motion is on THE SYSTEM SHALL show the fog without animation.
 
 ## Requirement 3: Remember per site
 
@@ -49,10 +64,10 @@ Visual reference: `concept/haunt-any-page.html` (open it in a browser). Hackatho
 
 1. THE SYSTEM SHALL save the settings for the current site in `chrome.storage.local` whenever they change.
 2. WHEN the user opens the popup on a site with saved settings THE SYSTEM SHALL show those settings.
-3. THE SYSTEM SHALL offer an "Haunt this site every time" checkbox.
-4. WHEN the user checks "Haunt this site every time" THE SYSTEM SHALL request the optional host permission for that site only; IF the user denies it THEN THE SYSTEM SHALL uncheck the box and keep working with one-click haunting.
-5. WHEN a remembered site with granted permission is loaded or reloaded and its saved state is haunted THE SYSTEM SHALL apply the skin at `document_start`, before the first paint where possible.
-6. WHEN the user unchecks "Haunt this site every time" THE SYSTEM SHALL stop auto-haunting it and remove the host permission for it.
+3. THE SYSTEM SHALL offer a "Remember this site" checkbox that covers both the haunted skin and Weather.
+4. WHEN the user checks "Remember this site" THE SYSTEM SHALL request the optional host permission for that site only; IF the user denies it THEN THE SYSTEM SHALL uncheck the box and keep working with one-click haunting.
+5. WHEN a remembered site with granted permission is loaded or reloaded and its saved state is haunted or its fog is on THE SYSTEM SHALL apply the skin and the fog at `document_start`, before the first paint where possible.
+6. WHEN the user unchecks "Remember this site" THE SYSTEM SHALL stop restoring it automatically and remove the host permission for it.
 
 ## Requirement 4: Privacy and permissions
 

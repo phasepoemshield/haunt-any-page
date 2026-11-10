@@ -8,7 +8,7 @@ The entire project followed Kiro's spec workflow:
 
 - **`.kiro/specs/haunt-any-page/requirements.md`**: EARS (Easy Approach to Requirements Syntax) acceptance criteria covering:
   - Core haunt/restore functionality
-  - Five effect options (fog, fog density, bats, font, flicker)
+  - Three effect options (bats, font, flicker) plus a separate Weather section (fog with density, speed and height sliders)
   - Per-site memory with optional permissions
   - Privacy constraints (no network, no data leaving browser)
   - Accessibility (keyboard, focus rings, reduced motion, WCAG AA contrast)

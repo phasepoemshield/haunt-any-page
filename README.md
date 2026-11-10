@@ -6,7 +6,7 @@ A browser extension for Chrome that transforms any website into a haunted versio
 
 ## Features
 
-- 🌫️ **Drifting fog layers** — Procedurally generated noise clouds with realistic movement
+- 🌫️ **Weather: drifting fog** — Procedurally generated noise clouds with density, speed and height sliders; works on any page, haunted or not
 - 🦇 **Flying bats** — Physics-based flight simulation with erratic darting behavior
 - 📜 **Old-book font** — Vintage typography for that ancient manuscript feel
 - 🕯️ **Candle flicker** — Subtle lighting effects at the edges
@@ -34,9 +34,10 @@ _Coming soon for the Kiroween 2026 hackathon!_
 1. Navigate to any website (http or https)
 2. Click the extension icon to open the popup
 3. Click "Haunt this page" to apply the effect
-4. Adjust fog density, toggle bats, font, and flicker as desired
-5. Check "Haunt this site every time" to remember your settings (Chrome will ask for permission once)
-6. Click "Restore the page" to return to normal
+4. Toggle bats, font, and flicker as desired
+5. Under Weather, switch on Fog (works on any page, haunted or not) and set density, speed and height
+6. Check "Remember this site" to bring the haunt and the weather back on every visit (Chrome will ask for permission once)
+7. Click "Restore the page" to return to normal
 
 ### Unsupported Pages
 
@@ -56,7 +57,7 @@ The extension cannot run on:
 
 ### Optional permissions
 
-- **Site access** (requested per-site) — Only when you check "Haunt this site every time"
+- **Site access** (requested per-site) — Only when you check "Remember this site"
   - Chrome will show a permission dialog
   - You can revoke this at any time from the extension popup or Chrome settings
   - Settings are stored locally and never leave your device

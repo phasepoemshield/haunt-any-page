@@ -24,16 +24,6 @@
     
     <div class="effects" id="effects">
       <div class="effect-row">
-        <label for="fogCheckbox">Fog</label>
-        <input type="checkbox" id="fogCheckbox" class="checkbox">
-      </div>
-      
-      <div class="effect-row density-row" id="densityRow" hidden>
-        <label for="densitySlider" class="density-label">Density</label>
-        <input type="range" id="densitySlider" class="slider" min="0" max="100" value="55">
-      </div>
-      
-      <div class="effect-row">
         <label for="batsCheckbox">Bats</label>
         <input type="checkbox" id="batsCheckbox" class="checkbox">
       </div>
@@ -49,12 +39,34 @@
       </div>
     </div>
     
+    <div class="weather" id="weather">
+      <p class="group-label">Weather</p>
+      <div class="effect-row">
+        <label for="fogCheckbox">Fog</label>
+        <input type="checkbox" id="fogCheckbox" class="checkbox">
+      </div>
+      <div id="fogControls" hidden>
+        <div class="effect-row density-row">
+          <label for="densitySlider" class="density-label">Density</label>
+          <input type="range" id="densitySlider" class="slider" min="0" max="100" value="55">
+        </div>
+        <div class="effect-row density-row">
+          <label for="speedSlider" class="density-label">Speed</label>
+          <input type="range" id="speedSlider" class="slider" min="0" max="100" value="50">
+        </div>
+        <div class="effect-row density-row">
+          <label for="heightSlider" class="density-label">Height</label>
+          <input type="range" id="heightSlider" class="slider" min="0" max="100" value="60">
+        </div>
+      </div>
+    </div>
+    
     <hr class="hairline">
     
     <div class="remember-row">
       <div class="remember-content">
-        <label for="rememberCheckbox" class="remember-label">Haunt this site every time</label>
-        <p class="hint">Chrome will ask once for access to this site. Settings stay on this device.</p>
+        <label for="rememberCheckbox" class="remember-label">Remember this site</label>
+        <p class="hint">Haunt and weather come back on every visit. Chrome will ask once for access to this site. Settings stay on this device.</p>
       </div>
       <input type="checkbox" id="rememberCheckbox" class="checkbox">
     </div>

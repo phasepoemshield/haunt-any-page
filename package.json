@@ -7,9 +7,11 @@
   "license": "MIT",
   "scripts": {
     "test": "node --test tests/checks.test.mjs tests/settings.test.mjs",
+    "e2e": "node --test tests/e2e.test.mjs",
     "test:e2e": "node --test tests/e2e.test.mjs",
     "test:all": "npm test && npm run test:e2e",
-    "check": "node scripts/check-manifest.mjs && node scripts/check-contrast.mjs && node scripts/check-privacy.mjs"
+    "check": "node scripts/check-manifest.mjs && node scripts/check-contrast.mjs && node scripts/check-privacy.mjs",
+    "zip": "rm -f haunt-any-page-v0.1.0.zip && zip -r haunt-any-page-v0.1.0.zip manifest.json LICENSE README.md src assets -x '*.DS_Store'"
   },
   "engines": {
     "node": ">=20"

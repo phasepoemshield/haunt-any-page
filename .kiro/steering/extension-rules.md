@@ -7,7 +7,7 @@ inclusion: always
 ## Permissions
 
 - Install-time permissions are exactly `activeTab`, `scripting`, `storage`. Nothing else (no `tabs`, no `<all_urls>`, no `webRequest`).
-- `host_permissions` stays empty. Per-site access for "Haunt this site every time" comes from `optional_host_permissions` (`https://*/*`, `http://*/*`) requested with `chrome.permissions.request` for one origin, inside a click handler.
+- `host_permissions` stays empty. Per-site access for "Remember this site" comes from `optional_host_permissions` (`https://*/*`, `http://*/*`) requested with `chrome.permissions.request` for one origin, inside a click handler.
 - No static `content_scripts` in the manifest. Inject with `chrome.scripting` from the popup, or register remembered sites with `chrome.scripting.registerContentScripts`.
 - `web_accessible_resources` exposes only `assets/fonts/*` with `"use_dynamic_url": true`.
 

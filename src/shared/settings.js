@@ -2,11 +2,18 @@
 // All settings live in chrome.storage.local: defaults and per-site overrides
 
 export const DEFAULTS = {
-  fog: true,
-  fogDensity: 55,
   bats: true,
   font: true,
   flicker: false
+};
+
+// Weather is separate from the haunted skin: it has its own on/off state and is
+// stored under `sites[origin].weather`, so it can be on while the page is not haunted.
+export const WEATHER_DEFAULTS = {
+  fog: false,
+  fogDensity: 55,
+  fogSpeed: 50,
+  fogHeight: 60
 };
 
 /**
@@ -57,4 +64,28 @@ export async function saveSite(origin, patch) {
 export async function loadAllSites() {
   const stored = await chrome.storage.local.get('sites');
   return stored.sites || {};
+}
+
+/**
+ * Load weather settings for a site (defaults merged with saved values)
+ * @param {string} origin
+ * @returns {Promise<Object>}
+ */
+export async function loadWeather(origin) {
+  const stored = await chrome.storage.local.get('sites');
+  return { ...WEATHER_DEFAULTS, ...(stored.sites?.[origin]?.weather || {}) };
+}
+
+/**
+ * Save weather settings for a site without touching its haunt settings
+ * @param {string} origin
+ * @param {Object} patch - partial weather settings
+ * @returns {Promise<void>}
+ */
+export async function saveWeather(origin, patch) {
+  const stored = await chrome.storage.local.get('sites');
+  const sites = stored.sites || {};
+  const current = sites[origin] || {};
+  sites[origin] = { ...current, weather: { ...WEATHER_DEFAULTS, ...(current.weather || {}), ...patch } };
+  await chrome.storage.local.set({ sites });
 }

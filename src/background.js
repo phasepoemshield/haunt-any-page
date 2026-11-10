@@ -34,13 +34,13 @@ async function syncRegistrations() {
     const sites = await loadAllSites();
     
     // Build matches array for sites that are:
-    // - haunted: true
+    // - haunted: true, or fog on in the weather settings
     // - remember: true
     // - have permission granted
     const matches = [];
     
     for (const [origin, settings] of Object.entries(sites)) {
-      if (settings.haunted && settings.remember) {
+      if ((settings.haunted || settings.weather?.fog) && settings.remember) {
         // Check if we have permission
         const hasPermission = await chrome.permissions.contains({
           origins: [origin + '/*']

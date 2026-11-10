@@ -12,6 +12,8 @@ const projectRoot = join(__dirname, '..');
 const extensionPath = projectRoot;
 const fixturePath = join(__dirname, 'fixtures', 'page.html');
 
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // Simple HTTP server for the fixture
 function startServer(port = 3000) {
   const server = http.createServer(async (req, res) => {
@@ -58,21 +60,19 @@ test('e2e: haunt and restore a page', { timeout: 60000 }, async () => {
     // Navigate to fixture
     await page.goto(url, { waitUntil: 'networkidle0' });
     
-    // Capture original outerHTML
-    const originalHTML = await page.evaluate(() => document.documentElement.outerHTML);
-    
     // Inject extension content script manually (simulating popup action)
     await page.addStyleTag({ path: join(projectRoot, 'src/content/haunt.css') });
     await page.addScriptTag({ path: join(projectRoot, 'src/content/haunt.js'), type: 'module' });
     
     // Wait a bit for script to initialize
-    await page.waitForTimeout(500);
+    await delay(500);
+    
+    // Capture outerHTML while inert (before apply)
+    const originalHTML = await page.evaluate(() => document.documentElement.outerHTML);
     
     // Apply haunt effect
     await page.evaluate(() => {
       const settings = {
-        fog: true,
-        fogDensity: 55,
         bats: true,
         font: true,
         flicker: false
@@ -81,7 +81,7 @@ test('e2e: haunt and restore a page', { timeout: 60000 }, async () => {
     });
     
     // Wait for effects to apply
-    await page.waitForTimeout(1000);
+    await delay(1000);
     
     // Verify haunt classes exist
     const hasHauntOn = await page.evaluate(() => 
@@ -92,7 +92,7 @@ test('e2e: haunt and restore a page', { timeout: 60000 }, async () => {
     const hasHauntFog = await page.evaluate(() => 
       document.documentElement.classList.contains('haunt-fog')
     );
-    assert.equal(hasHauntFog, true, 'html should have haunt-fog class');
+    assert.equal(hasHauntFog, false, 'fog is weather now, not a haunt effect');
     
     const hasHauntBats = await page.evaluate(() => 
       document.documentElement.classList.contains('haunt-bats')
@@ -106,12 +106,18 @@ test('e2e: haunt and restore a page', { timeout: 60000 }, async () => {
     });
     assert.equal(overlayExists, true, 'overlay element should exist');
     
-    // Verify overlay has shadow root
-    const hasShadowRoot = await page.evaluate(() => {
+    // Verify overlay has closed shadow root (shadowRoot property is null, re-attaching throws)
+    const hasClosedShadowRoot = await page.evaluate(() => {
       const overlay = document.querySelector('haunt-any-page-overlay');
-      return overlay && overlay.shadowRoot !== null;
+      if (!overlay || overlay.shadowRoot !== null) return false;
+      try {
+        overlay.attachShadow({ mode: 'open' });
+        return false;
+      } catch {
+        return true;
+      }
     });
-    assert.equal(hasShadowRoot, true, 'overlay should have shadow root');
+    assert.equal(hasClosedShadowRoot, true, 'overlay should have closed shadow root');
     
     // Restore the page
     await page.evaluate(() => {
@@ -119,10 +125,11 @@ test('e2e: haunt and restore a page', { timeout: 60000 }, async () => {
     });
     
     // Wait for restoration
-    await page.waitForTimeout(500);
+    await delay(500);
     
     // Verify restoration
     const afterRestoreHTML = await page.evaluate(() => document.documentElement.outerHTML);
+    assert.equal(afterRestoreHTML, originalHTML, 'DOM after restore should equal DOM before apply');
     
     // Check that haunt classes are removed
     const hasNoHauntOn = await page.evaluate(() => 
